@@ -1,7 +1,7 @@
-Spark, Cassandra and Kafka Prototypes
--------------------------------------
->The purpose of the project is to test Spark, Spark-Cassandra Connector and Kafka-Spark Streaming features using
- Scala 2.11.7. And, yes, this will hurt.;)
+Visual Spark Simulator
+----------------------
+>The purpose of the project is to build a Spark simulator that executes a visual simulation of a data source ~> spark
+flow ~> data sink pipeline using Scala 2.11.7.
 
 ***
 
@@ -47,7 +47,7 @@ Spark
 
 Kafka
 -----
->Install Kafka from github. The brew and apached distros are Scala 2.10 oriented.
+>Install Kafka from github. The brew and apache distros are Scala 2.10 oriented.
 
 1. git clone https://github.com/apache/kafka
 2. gradle
@@ -83,33 +83,9 @@ Services
 2. brew services stop zookeeper
 3. $KAFKA_HOME/bin/kafka-server-stop.sh
 
-Tests
------
->Test results can be viewed at ./target/output/test. See the Output section below.
-
-1. sbt test
-
-Assembly and Submit
--------------------
-1. sbt assembly
-2. spark-submit --class spark.SparkApp --master local[*] ./target/scala-2.11/spark-app-0.1.jar
-
->[Submitting Spark Applications] (https://spark.apache.org/docs/latest/submitting-applications.html)
-
-Assembly and Run
-----------------
-1. sbt assembly
-2. java -cp $SCALA_LIB/scala-library.jar:$SPARK_LAUNCHER/spark-launcher_2.11-1.5.0-SNAPSHOT.jar:./target/scala-2.11/spark-app-0.1.jar sc.SparkAppLauncher
-
->This is not an ideal option. Moreover, an uber jar is problematic. Instead, go with assembly and submit whenever possible.
-That said, a lightweight uber jar, composing scala-library, spark-launcher and spark app classes/resources is a viable
-option with SparkLauncher, which ultimately calls spark-submit --- which, in addition to a large number of Spark built
-dependencies, loads the spark assembly uber jar.
-
+Run
+---
 1. sbt run
-2. [1] spark.SparkApp   [2] spark.SparkAppLauncher
-
->Optional: Above, select option 1. Selecting option 2 fails.
 
 Logging
 -------

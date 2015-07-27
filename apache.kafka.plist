@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>apache.kafka</string>
+    <key>WorkingDirectory</key>
+    <string>/Users/javawerks/workspace/apache/kafka</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/Users/javawerks/workspace/apache/kafka/bin/kafka-server-start.sh</string>
+      <string>/Users/javawerks/workspace/apache/kafka/config/server.properties</string>
+    </array>
+    <key>KeepAlive</key>
+    <true/>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardErrorPath</key>
+    <string>/Users/javawerks/workspace/apache/kafka/logs/kafka.error.log</string>
+    <key>StandardOutPath</key>
+    <string>/Users/javawerks/workspace/apache/kafka/logs/kafka.output.log</string>
+  </dict>
+</plist>
