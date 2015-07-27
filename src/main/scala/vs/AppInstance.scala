@@ -1,6 +1,9 @@
 package vs
 
 import com.datastax.spark.connector.cql.CassandraConnector
+import kafka.admin.AdminUtils
+import kafka.utils.ZKStringSerializer
+import org.I0Itec.zkclient.ZkClient
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.io.Source
@@ -16,4 +19,15 @@ object AppInstance {
   }
   val license = Source.fromInputStream(getClass.getResourceAsStream("/license.mit")).getLines.toSeq
   val topic = "license"
+  createTopic()
+
+  private def createTopic(): Unit = {
+    val zkClient = new ZkClient("localhost:2181", 3000, 3000, ZKStringSerializer)
+    val metadata = AdminUtils.fetchTopicMetadataFromZk(topic, zkClient)
+    metadata.partitionsMetadata.foreach(println)
+    if (metadata.topic != topic) {
+      AdminUtils.createTopic(zkClient, topic, 1, 1)
+      println(s"Created topic: $topic")
+    }
+  }
 }
