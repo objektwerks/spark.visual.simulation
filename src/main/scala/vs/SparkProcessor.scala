@@ -22,7 +22,7 @@ class SparkProcessor {
     ds.saveAsTextFiles("./target/output/test/ds")
     val wordCountDs = countWords(ds)
     saveToCassandra(wordCountDs)
-    streamingContext.start
+    streamingContext.start()
     streamingContext.awaitTerminationOrTimeout(3000)
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
   }
