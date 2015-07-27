@@ -8,6 +8,7 @@ import scalafx.scene.layout.VBox
 
 object App extends JFXApp {
   private implicit def ec = ExecutionContext.global
+  AppInstance.init()
 
   private val appPane = new VBox {
     maxWidth = 400

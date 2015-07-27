@@ -3,6 +3,7 @@ package vs
 import java.util.Properties
 
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
+import org.apache.spark.rdd.RDD
 
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
@@ -24,5 +25,9 @@ class KafkaProducer {
     }
     producer.send(messages:_*)
     messages.size
+  }
+
+  private def toWords(rdd: RDD[String]): RDD[(String)] = {
+    rdd.flatMap(l => l.split("\\P{L}+")).filter(_.nonEmpty).map(_.toLowerCase)
   }
 }

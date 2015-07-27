@@ -12,7 +12,7 @@ class SparkProcessor {
   private val sqlContext = AppInstance.sqlContext
   private val topic = AppInstance.topic
 
-  def process(): Unit = {
+  def processKafkaTopic(): Unit = {
     val streamingContext = new StreamingContext(context, Milliseconds(1000))
     streamingContext.checkpoint("./target/output/test/checkpoint/kss")
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
@@ -37,5 +37,9 @@ class SparkProcessor {
     val df = sqlContext.sql("select * from test.words")
     df.collect()
     // Todo
+  }
+
+  private def countWords(ds: DStream[(String, String)]): DStream[(String, Int)] = {
+    ds.map(kv => (kv._1, kv._2.toInt)).reduceByKey(_ + _)
   }
 }

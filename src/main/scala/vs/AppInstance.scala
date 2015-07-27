@@ -22,7 +22,9 @@ object AppInstance {
   val license = Source.fromInputStream(getClass.getResourceAsStream("/license.mit")).getLines.toSeq
   val topic = "license"
 
-  createTopic()
+  def init(): Unit = {
+    createTopic()
+  }
 
   private def createTopic(): Unit = {
     val zkClient = new ZkClient("localhost:2181", 3000, 3000, ZKStringSerializer)
