@@ -1,5 +1,6 @@
 package vs
 
+import scalafx.Includes._
 import scala.concurrent.ExecutionContext
 import scalafx.application.JFXApp
 import scalafx.geometry.Insets

@@ -20,7 +20,7 @@ class SparkProcessor {
     val ds = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics).cache()
     ds.checkpoint(Milliseconds(1000))
     ds.saveAsTextFiles("./target/output/test/ds")
-    val wordCountDs = countWords(ds)
+    val wordCountDs = ds.map(kv => (kv._1, kv._2.toInt)).reduceByKey(_ + _)
     saveToCassandra(wordCountDs)
     streamingContext.start()
     streamingContext.awaitTerminationOrTimeout(3000)
@@ -37,9 +37,5 @@ class SparkProcessor {
     val df = sqlContext.sql("select * from test.words")
     df.collect()
     // Todo
-  }
-
-  private def countWords(ds: DStream[(String, String)]): DStream[(String, Int)] = {
-    ds.map(kv => (kv._1, kv._2.toInt)).reduceByKey(_ + _)
   }
 }

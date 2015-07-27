@@ -3,7 +3,6 @@ package vs
 import java.util.Properties
 
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
-import org.apache.spark.rdd.RDD
 
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
