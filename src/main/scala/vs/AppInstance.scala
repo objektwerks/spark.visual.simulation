@@ -4,6 +4,7 @@ import com.datastax.spark.connector.cql.CassandraConnector
 import kafka.admin.AdminUtils
 import kafka.utils.ZKStringSerializer
 import org.I0Itec.zkclient.ZkClient
+import org.apache.spark.sql.cassandra.CassandraSQLContext
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.io.Source
@@ -11,6 +12,7 @@ import scala.io.Source
 object AppInstance {
   val conf = new SparkConf().setMaster("local[2]").setAppName("sparky").set("spark.cassandra.connection.host", "127.0.0.1")
   val context = new SparkContext(conf)
+  val sqlContext = new CassandraSQLContext(context)
   val connector = CassandraConnector(conf)
   connector.withSessionDo { session =>
     session.execute("DROP KEYSPACE IF EXISTS test;")

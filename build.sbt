@@ -9,6 +9,7 @@ libraryDependencies ++= {
     "org.scalafx" % "scalafx_2.11" % "8.0.40-R8",
     "org.apache.spark" % "spark-core_2.11" % sparkVersion,
     "org.apache.spark" % "spark-streaming_2.11" % sparkVersion,
+    "org.apache.spark" % "spark-sql_2.11" % sparkVersion,
     "org.apache.spark" % "spark-streaming-kafka_2.11" % sparkVersion,
     "org.apache.kafka" % "kafka_2.11" % "0.8.2.1",
     "com.datastax.spark" % "spark-cassandra-connector_2.11" % "1.4.0-M1",
