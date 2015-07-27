@@ -57,14 +57,6 @@ Kafka
 
 >You can also edit scalaVersion=2.11.7 in gradle.properties. Provide a fully qualified path for Kafka server.properties log.dirs
 
-Configuration
--------------
-1. log4j.properties
-2. spark.properties
-
->The test versions are fine as is. The main version of log4j.properties is only used within your IDE. To enable Spark
-logging, copy main/resources/log4j.properties to $SPARK_HOME/conf ( where you will see a tempalte version ). Tune as required.
-
 Services
 --------
 >Start:
