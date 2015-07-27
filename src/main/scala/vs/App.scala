@@ -22,6 +22,9 @@ object App extends JFXApp {
     title.value = "Visual Spark"
     scene = new Scene {
       root = appPane
+      onCloseRequest = handle {
+        AppInstance.destroy()
+      }
     }
   }
 }

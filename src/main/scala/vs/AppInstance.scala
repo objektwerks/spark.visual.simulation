@@ -26,6 +26,10 @@ object AppInstance {
     createTopic()
   }
 
+  def destroy(): Unit = {
+    context.stop()
+  }
+
   private def createTopic(): Unit = {
     val zkClient = new ZkClient("localhost:2181", 3000, 3000, ZKStringSerializer)
     val metadata = AdminUtils.fetchTopicMetadataFromZk(topic, zkClient)
