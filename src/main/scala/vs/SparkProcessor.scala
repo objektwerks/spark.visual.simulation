@@ -17,7 +17,7 @@ class SparkProcessor {
     streamingContext.checkpoint("./target/output/test/checkpoint/kss")
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
     val topics = Set(topic)
-    val ds = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics).cache
+    val ds = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics).cache()
     ds.checkpoint(Milliseconds(1000))
     ds.saveAsTextFiles("./target/output/test/ds")
     val wordCountDs = countWords(ds)
