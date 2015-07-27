@@ -19,6 +19,7 @@ object AppInstance {
   }
   val license = Source.fromInputStream(getClass.getResourceAsStream("/license.mit")).getLines.toSeq
   val topic = "license"
+
   createTopic()
 
   private def createTopic(): Unit = {

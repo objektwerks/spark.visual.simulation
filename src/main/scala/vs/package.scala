@@ -6,11 +6,7 @@ package object vs {
     rdd.flatMap(l => l.split("\\P{L}+")).filter(_.nonEmpty).map(_.toLowerCase)
   }
 
-  def countWords(rdd: RDD[String]): RDD[(String, Int)] = {
-    rdd.flatMap(l => l.split("\\P{L}+")).filter(_.nonEmpty).map(_.toLowerCase).map(w => (w, 1)).reduceByKey(_ + _)
-  }
-
-  def countWords(ds: DStream[String]): DStream[(String, Int)] = {
-    ds.flatMap(l => l.split("\\P{L}+")).filter(_.nonEmpty).map(_.toLowerCase).map(w => (w, 1)).reduceByKey(_ + _)
+  def countWords(ds: DStream[(String, String)]): DStream[(String, Int)] = {
+    ds.map(kv => (kv._1, kv._2.toInt)).reduceByKey(_ + _)
   }
 }

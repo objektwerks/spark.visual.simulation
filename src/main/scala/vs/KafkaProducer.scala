@@ -20,7 +20,7 @@ class KafkaProducer {
     val words = toWords(rdd).collect()
     val messages = ArrayBuffer[KeyedMessage[String, String]]()
     words foreach { w =>
-      messages += KeyedMessage[String, String](topic = topic, key = w, partKey = w, message = w)
+      messages += KeyedMessage[String, String](topic = topic, key = w, partKey = w, message = 1.toString)
     }
     producer.send(messages:_*)
     messages.size
