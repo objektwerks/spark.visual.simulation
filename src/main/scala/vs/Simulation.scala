@@ -1,8 +1,9 @@
 package vs
 
-import java.util.Properties
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.{Properties, UUID}
 
-import com.datastax.spark.connector.SomeColumns
 import com.datastax.spark.connector.cql.CassandraConnector
 import kafka.admin.AdminUtils
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
@@ -21,16 +22,17 @@ import scala.io.Source
 class Simulation {
   val conf = new SparkConf().setMaster("local[2]").setAppName("sparky").set("spark.cassandra.connection.host", "127.0.0.1")
   val context = new SparkContext(conf)
+  val connector = CassandraConnector(conf)
   val sqlContext = new CassandraSQLContext(context)
-  val license = Source.fromInputStream(getClass.getResourceAsStream("/license.mit")).getLines.toSeq
+  val ratings = Source.fromInputStream(getClass.getResourceAsStream("/ratings")).getLines.toSeq
   val topic = "license"
 
   def play(): Unit = {
     try {
       createCassandraStore()
       createKafkaTopic()
-      val count = produceKafkaTopicMessages()
-      consumeKafkaTopicMessages()
+      val kafkaMessages = produceKafkaTopicMessages()
+      val cassandraMessages = consumeKafkaTopicMessages()
       selectFromCassandra()
     } finally {
       context.stop
@@ -38,11 +40,10 @@ class Simulation {
   }
 
   def createCassandraStore(): Unit = {
-    val connector = CassandraConnector(conf)
     connector.withSessionDo { session =>
-      session.execute("DROP KEYSPACE IF EXISTS test;")
-      session.execute("CREATE KEYSPACE test WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
-      session.execute("CREATE TABLE test.words(word text PRIMARY KEY, count int);")
+      session.execute("DROP KEYSPACE IF EXISTS simulation;")
+      session.execute("CREATE KEYSPACE simulation WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
+      session.execute("CREATE TABLE simulation.ratings(uuid text PRIMARY KEY, program text, episode int, rating int);")
     }
   }
 
@@ -52,44 +53,54 @@ class Simulation {
     metadata.partitionsMetadata.foreach(println)
     if (metadata.topic != topic) {
       AdminUtils.createTopic(zkClient, topic, 1, 1)
-      println(s"Created topic: $topic")
     }
   }
 
-  def produceKafkaTopicMessages(): Int = {
+  def produceKafkaTopicMessages(): ArrayBuffer[(String, String, String, String)] = {
     val props = new Properties
     props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
     val config = new ProducerConfig(props)
     val producer = new Producer[String, String](config)
-    val rdd = context.makeRDD(license)
-    val words = rdd.flatMap(l => l.split("\\P{L}+")).filter(_.nonEmpty).map(_.toLowerCase).collect()
-    val messages = ArrayBuffer[KeyedMessage[String, String]]()
-    words foreach { w =>
-      messages += KeyedMessage[String, String](topic = topic, key = w, partKey = w, message = 1.toString)
+    val messages = ArrayBuffer[(String, String, String, String)]()
+    ratings foreach { l =>
+      val fields: Array[String] = l.split(",").map(_.trim)
+      producer.send(KeyedMessage[String, String](topic = topic, key = fields(0), partKey = fields(0), message = s"$fields(1),$fields(2)"))
+      val tuple = (LocalTime.now().format(DateTimeFormatter.ofPattern("mm:sss")), fields(0), fields(1), fields(2))
+      messages += tuple
     }
-    producer.send(messages:_*)
-    messages.size
+    messages
   }
 
-  def consumeKafkaTopicMessages(): Unit = {
-    import com.datastax.spark.connector.streaming._
+  def consumeKafkaTopicMessages(): ArrayBuffer[(String, String, Int, Int)] = {
     val streamingContext = new StreamingContext(context, Milliseconds(1000))
-    streamingContext.checkpoint("./target/output/test/checkpoint/kss")
+    streamingContext.checkpoint("./target/output/test/checkpoint")
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
     val topics = Set(topic)
     val ds = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics).cache()
     ds.checkpoint(Milliseconds(1000))
     ds.saveAsTextFiles("./target/output/test/ds")
-    val wordCountDs = ds.map(kv => (kv._1, kv._2.toInt)).reduceByKey(_ + _)
-    wordCountDs.repartitionByCassandraReplica(keyspaceName = "test", tableName = "words", partitionsPerHost = 2)
-    wordCountDs.saveToCassandra("test", "words", SomeColumns("word", "count"))
+    val messages = ArrayBuffer[(String, String, Int, Int)]()
+    ds foreachRDD { rdd =>
+      rdd foreach { t =>
+        val uuid = UUID.randomUUID.toString
+        val program = t._1
+        val episodeRating = t._2.split(",").map(_.toInt)
+        val (episode, rating) = (episodeRating(0), episodeRating(1))
+        connector.withSessionDo { session =>
+          session.execute(s"INSERT INTO simulation.ratings(uuid, program, episode, rating) VALUES ($uuid, $program, $episode, $rating);")
+        }
+        val tuple = (uuid, program, episode, rating)
+        messages += tuple
+      }
+    }
     streamingContext.start()
     streamingContext.awaitTerminationOrTimeout(3000)
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
+    messages
   }
 
   def selectFromCassandra(): Array[Row] = {
-    val df = sqlContext.sql("select * from test.words")
+    val df = sqlContext.sql("select * from simulation.ratings")
     df.collect()
     // Todo
   }
