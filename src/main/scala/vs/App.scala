@@ -6,7 +6,7 @@ import scalafx.application.JFXApp
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
 import scalafx.scene.chart.{PieChart, NumberAxis, LineChart}
-import scalafx.scene.control.{ListView, Label, Button, ToolBar}
+import scalafx.scene.control._
 import scalafx.scene.layout.VBox
 
 object App extends JFXApp {
@@ -28,7 +28,7 @@ object App extends JFXApp {
 
   val sourceLabel = new Label { text = "Source"}
 
-  val sourceChart = new ListView[String]() {
+  val sourceTable = new TableView[String]() {
   }
 
   val flowLabel = new Label { text = "Flow"}
@@ -46,7 +46,7 @@ object App extends JFXApp {
     maxHeight = 800
     spacing = 6
     padding = Insets(6)
-    children = List(sourceLabel, sourceChart, flowLabel, flowChart, sinkLabel, sinkChart)
+    children = List(sourceLabel, sourceTable, flowLabel, flowChart, sinkLabel, sinkChart)
   }
 
   val appPane = new VBox {
