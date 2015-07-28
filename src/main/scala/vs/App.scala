@@ -5,8 +5,8 @@ import scala.concurrent.ExecutionContext
 import scalafx.application.JFXApp
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
-import scalafx.scene.chart.{NumberAxis, LineChart}
-import scalafx.scene.control.{Label, Button, ToolBar}
+import scalafx.scene.chart.{PieChart, NumberAxis, LineChart}
+import scalafx.scene.control.{ListView, Label, Button, ToolBar}
 import scalafx.scene.layout.VBox
 
 object App extends JFXApp {
@@ -28,17 +28,17 @@ object App extends JFXApp {
 
   val sourceLabel = new Label { text = "Source"}
 
-  val sourceChart = new LineChart(NumberAxis("Millis", 0, 100, 10), NumberAxis("Messages", 0, 100, 10)) {
+  val sourceChart = new ListView[String]() {
   }
 
   val flowLabel = new Label { text = "Flow"}
 
-  val flowChart = new LineChart(NumberAxis("Seconds", 0, 100, 10), NumberAxis("Words", 0, 100, 10)) {
+  val flowChart = new LineChart(NumberAxis("Episodes", 0, 100, 10), NumberAxis("Ratings", 0, 100, 10)) {
   }
 
   val sinkLabel = new Label { text = "Sink"}
 
-  val sinkChart = new LineChart(NumberAxis("Seconds", 0, 100, 10), NumberAxis("Words", 0, 100, 10)) {
+  val sinkChart = new PieChart() {
   }
 
   val simulationPane = new VBox {
