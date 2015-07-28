@@ -28,7 +28,7 @@ object App extends JFXApp {
 
   val sourceLabel = new Label { text = "Source"}
 
-  val sourceChart = new LineChart(NumberAxis("Seconds", 0, 100, 10), NumberAxis("Words", 0, 100, 10)) {
+  val sourceChart = new LineChart(NumberAxis("Millis", 0, 100, 10), NumberAxis("Messages", 0, 100, 10)) {
   }
 
   val flowLabel = new Label { text = "Flow"}
