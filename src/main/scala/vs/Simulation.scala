@@ -28,12 +28,12 @@ class Simulation {
   val connector = CassandraConnector(conf)
   val sqlContext = new CassandraSQLContext(context)
   val ratings = Source.fromInputStream(getClass.getResourceAsStream("/ratings")).getLines.toSeq
-  val topic = "license"
+  val topic = "ratings"
 
   def play(): Result = {
     try {
-      createCassandraStore()
       createKafkaTopic()
+      createCassandraStore()
       val kafkaMessages = produceKafkaTopicMessages()
       val cassandraMessages = consumeKafkaTopicMessages()
       val cassandraRatings = selectFromCassandra()
@@ -43,20 +43,20 @@ class Simulation {
     }
   }
 
-  def createCassandraStore(): Unit = {
-    connector.withSessionDo { session =>
-      session.execute("DROP KEYSPACE IF EXISTS simulation;")
-      session.execute("CREATE KEYSPACE simulation WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
-      session.execute("CREATE TABLE simulation.ratings(uuid text PRIMARY KEY, program text, episode int, rating int);")
-    }
-  }
-
   def createKafkaTopic(): Unit = {
     val zkClient = new ZkClient("localhost:2181", 3000, 3000, ZKStringSerializer)
     val metadata = AdminUtils.fetchTopicMetadataFromZk(topic, zkClient)
     metadata.partitionsMetadata.foreach(println)
     if (metadata.topic != topic) {
       AdminUtils.createTopic(zkClient, topic, 1, 1)
+    }
+  }
+
+  def createCassandraStore(): Unit = {
+    connector.withSessionDo { session =>
+      session.execute("DROP KEYSPACE IF EXISTS simulation;")
+      session.execute("CREATE KEYSPACE simulation WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
+      session.execute("CREATE TABLE simulation.ratings(uuid text PRIMARY KEY, program text, episode int, rating int);")
     }
   }
 
