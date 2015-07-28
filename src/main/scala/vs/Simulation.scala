@@ -10,7 +10,6 @@ import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
 import kafka.serializer.StringDecoder
 import kafka.utils.ZKStringSerializer
 import org.I0Itec.zkclient.ZkClient
-import org.apache.spark.sql.Row
 import org.apache.spark.sql.cassandra.CassandraSQLContext
 import org.apache.spark.streaming.kafka.KafkaUtils
 import org.apache.spark.streaming.{Milliseconds, StreamingContext}
@@ -18,6 +17,10 @@ import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
+
+case class Result(kafkaMessages: ArrayBuffer[(String, String, String, String)],
+                  cassandraMessages: ArrayBuffer[(String, String, Int, Int)],
+                  cassandraRatings: ArrayBuffer[(String, Int)])
 
 class Simulation {
   val conf = new SparkConf().setMaster("local[2]").setAppName("sparky").set("spark.cassandra.connection.host", "127.0.0.1")
@@ -27,13 +30,14 @@ class Simulation {
   val ratings = Source.fromInputStream(getClass.getResourceAsStream("/ratings")).getLines.toSeq
   val topic = "license"
 
-  def play(): Unit = {
+  def play(): Result = {
     try {
       createCassandraStore()
       createKafkaTopic()
       val kafkaMessages = produceKafkaTopicMessages()
       val cassandraMessages = consumeKafkaTopicMessages()
-      selectFromCassandra()
+      val cassandraRatings = selectFromCassandra()
+      Result(kafkaMessages, cassandraMessages, cassandraRatings)
     } finally {
       context.stop
     }
@@ -99,9 +103,14 @@ class Simulation {
     messages
   }
 
-  def selectFromCassandra(): Array[Row] = {
-    val df = sqlContext.sql("select * from simulation.ratings")
-    df.collect()
-    // Todo
+  def selectFromCassandra(): ArrayBuffer[(String, Int)] = {
+    val df = sqlContext.sql("select program, rating from simulation.ratings")
+    val rows = df.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()
+    val data = ArrayBuffer[(String, Int)]()
+    rows foreach { r =>
+      val tuple = (r.getString(0), r.getInt(1))
+      data += tuple
+    }
+    data
   }
 }
