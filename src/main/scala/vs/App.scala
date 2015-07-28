@@ -10,11 +10,22 @@ import scalafx.scene.control.{Label, Button, ToolBar}
 import scalafx.scene.layout.VBox
 
 object App extends JFXApp {
-  private implicit def ec = ExecutionContext.global
-  // AppInstance.init()
+  implicit def ec = ExecutionContext.global
+
+  val playSimulationButton = new Button {
+    text = "Play"
+    onAction = handle {
+/*
+      val simulation = new Simulation()
+      simulation.before()
+      simulation.play()
+      simulation.after()
+*/
+    }
+  }
 
   val toolbar = new ToolBar {
-    content = List( new Button { text = "Play" } )
+    content = List( playSimulationButton )
   }
 
   val sourceLabel = new Label { text = "Source"}
@@ -52,9 +63,6 @@ object App extends JFXApp {
     title.value = "Visual Spark"
     scene = new Scene {
       root = appPane
-      onCloseRequest = handle {
-        // AppInstance.destroy()
-      }
     }
   }
 }
