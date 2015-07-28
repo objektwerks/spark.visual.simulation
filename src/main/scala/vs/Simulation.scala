@@ -11,10 +11,9 @@ import kafka.utils.ZKStringSerializer
 import org.I0Itec.zkclient.ZkClient
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.cassandra.CassandraSQLContext
-import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka.KafkaUtils
 import org.apache.spark.streaming.{Milliseconds, StreamingContext}
-import org.apache.spark.{SparkContext, SparkConf}
+import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
@@ -27,8 +26,15 @@ class Simulation {
   val topic = "license"
 
   def play(): Unit = {
-    // Todo
-    context.stop()
+    try {
+      createCassandraStore()
+      createKafkaTopic()
+      val count = produceKafkaTopicMessages()
+      consumeKafkaTopicMessages()
+      selectFromCassandra()
+    } finally {
+      context.stop
+    }
   }
 
   def createCassandraStore(): Unit = {
@@ -66,6 +72,7 @@ class Simulation {
   }
 
   def consumeKafkaTopicMessages(): Unit = {
+    import com.datastax.spark.connector.streaming._
     val streamingContext = new StreamingContext(context, Milliseconds(1000))
     streamingContext.checkpoint("./target/output/test/checkpoint/kss")
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
@@ -74,19 +81,14 @@ class Simulation {
     ds.checkpoint(Milliseconds(1000))
     ds.saveAsTextFiles("./target/output/test/ds")
     val wordCountDs = ds.map(kv => (kv._1, kv._2.toInt)).reduceByKey(_ + _)
-    saveToCassandra(wordCountDs)
+    wordCountDs.repartitionByCassandraReplica(keyspaceName = "test", tableName = "words", partitionsPerHost = 2)
+    wordCountDs.saveToCassandra("test", "words", SomeColumns("word", "count"))
     streamingContext.start()
     streamingContext.awaitTerminationOrTimeout(3000)
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
   }
 
-  def saveToCassandra(ds: DStream[(String, Int)]): Unit = {
-    import com.datastax.spark.connector.streaming._
-    ds.repartitionByCassandraReplica(keyspaceName = "test", tableName = "words", partitionsPerHost = 2)
-    ds.saveToCassandra("test", "words", SomeColumns("word", "count"))
-  }
-
-  def selectFromCassandra(streamingContext: StreamingContext): Array[Row] = {
+  def selectFromCassandra(): Array[Row] = {
     val df = sqlContext.sql("select * from test.words")
     df.collect()
     // Todo
