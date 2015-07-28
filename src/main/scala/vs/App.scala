@@ -17,7 +17,7 @@ object App extends JFXApp {
     onAction = handle {
 /*
       val simulation = new Simulation()
-      simulation.play()
+      val result = simulation.play()
 */
     }
   }
