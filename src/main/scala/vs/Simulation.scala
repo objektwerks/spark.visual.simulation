@@ -26,22 +26,18 @@ class Simulation {
   val license = Source.fromInputStream(getClass.getResourceAsStream("/license.mit")).getLines.toSeq
   val topic = "license"
 
-  def before(): Unit = {
-    createKafkaTopic()
+  def play(): Unit = {
+    // Todo
+    context.stop()
+  }
+
+  def createCassandraStore(): Unit = {
     val connector = CassandraConnector(conf)
     connector.withSessionDo { session =>
       session.execute("DROP KEYSPACE IF EXISTS test;")
       session.execute("CREATE KEYSPACE test WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
       session.execute("CREATE TABLE test.words(word text PRIMARY KEY, count int);")
     }
-  }
-
-  def after(): Unit = {
-    context.stop()
-  }
-
-  def play(): Unit = {
-
   }
 
   def createKafkaTopic(): Unit = {
