@@ -10,6 +10,7 @@ import kafka.serializer.StringDecoder
 import kafka.utils.ZKStringSerializer
 import org.I0Itec.zkclient.ZkClient
 import org.apache.spark.sql.cassandra.CassandraSQLContext
+import org.apache.spark.streaming.dstream.InputDStream
 import org.apache.spark.streaming.kafka.KafkaUtils
 import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -88,7 +89,7 @@ class Simulation {
     streamingContext.checkpoint("./target/output/test/checkpoint")
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
     val topics = Set(topic)
-    val ds = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
+    val ds: InputDStream[(String, Rating)] = KafkaUtils.createDirectStream(streamingContext, kafkaParams, topics)
     ds.saveAsTextFiles("./target/output/test/ds")
     ds.saveToCassandra("simulation", "ratings", SomeColumns("uuid", "program", "episode", "rating"))
     streamingContext.start()
