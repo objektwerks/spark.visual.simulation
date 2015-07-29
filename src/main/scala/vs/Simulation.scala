@@ -18,11 +18,13 @@ import org.apache.spark.{SparkConf, SparkContext}
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
-case class Result(kafkaMessages: ArrayBuffer[(String, String, String, String)],
-                  cassandraMessages: ArrayBuffer[(String, String, Int, Int)],
-                  cassandraRatings: ArrayBuffer[(String, Int)]) {
+case class Result(producedKafkaTopicMessages: ArrayBuffer[(String, String, String, String)],
+                  consumedTransformedKafkaTopicMessages: ArrayBuffer[(String, String, Int, Int)],
+                  selectedCassandraRatings: ArrayBuffer[(String, Int)]) {
   override def toString: String = {
-    s"kafka messages: $kafkaMessages \ncassandra messages: $cassandraMessages \ncassandra ratings: $cassandraRatings"
+    s"""produced kafka topic messages: $producedKafkaTopicMessages"
+        \nconsumed transformed kafka topic messages: $consumedTransformedKafkaTopicMessages"
+        \nselected cassandra ratings: $selectedCassandraRatings"""
   }
 }
 
@@ -37,10 +39,11 @@ class Simulation {
     try {
       createKafkaTopic()
       createCassandraStore()
-      val kafkaMessages = produceKafkaTopicMessages()
-      val cassandraMessages = consumeKafkaTopicMessages()
-      val cassandraRatings = selectFromCassandra()
-      Result(kafkaMessages, cassandraMessages, cassandraRatings)
+      val producedKafkaTopicMessages = produceKafkaTopicMessages()
+      val consumedTransformedKafkaTopicMessages = consumeKafkaTopicMessages()
+      saveToCassandra(consumedTransformedKafkaTopicMessages)
+      val selectedCassandraRatings = selectFromCassandra()
+      Result(producedKafkaTopicMessages, consumedTransformedKafkaTopicMessages, selectedCassandraRatings)
     } finally {
       context.stop
     }
@@ -72,7 +75,7 @@ class Simulation {
     ratings foreach { l =>
       val fields: Array[String] = l.split(",").map(_.trim)
       producer.send(KeyedMessage[String, String](topic = topic, key = fields(0), partKey = fields(0), message = s"$fields(1),$fields(2)"))
-      val tuple = (LocalTime.now().format(DateTimeFormatter.ofPattern("mm:sss")), fields(0), fields(1), fields(2))
+      val tuple = (LocalTime.now().format(DateTimeFormatter.ofPattern("mm:ss")), fields(0), fields(1), fields(2))
       messages += tuple
     }
     messages
@@ -83,8 +86,7 @@ class Simulation {
     streamingContext.checkpoint("./target/output/test/checkpoint")
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
     val topics = Set(topic)
-    val ds = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics).cache()
-    ds.checkpoint(Milliseconds(1000))
+    val ds = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
     ds.saveAsTextFiles("./target/output/test/ds")
     val messages = ArrayBuffer[(String, String, Int, Int)]()
     ds foreachRDD { rdd =>
@@ -93,9 +95,6 @@ class Simulation {
         val program = t._1
         val episodeRating = t._2.split(",").map(_.toInt)
         val (episode, rating) = (episodeRating(0), episodeRating(1))
-        connector.withSessionDo { session =>
-          session.execute(s"INSERT INTO simulation.ratings(uuid, program, episode, rating) VALUES ($uuid, $program, $episode, $rating);")
-        }
         val tuple = (uuid, program, episode, rating)
         messages += tuple
       }
@@ -104,6 +103,15 @@ class Simulation {
     streamingContext.awaitTerminationOrTimeout(3000)
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
     messages
+  }
+
+  def saveToCassandra(messages: ArrayBuffer[(String, String, Int, Int)]): Unit = {
+    messages foreach { m =>
+      val (uuid, program, episode, rating) = m
+      connector.withSessionDo { session =>
+        session.execute(s"INSERT INTO simulation.ratings(uuid, program, episode, rating) VALUES ($uuid, $program, $episode, $rating);")
+      }
+    }
   }
 
   def selectFromCassandra(): ArrayBuffer[(String, Int)] = {
