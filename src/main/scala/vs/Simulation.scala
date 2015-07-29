@@ -21,11 +21,9 @@ import scala.io.Source
 case class Rating(uuid: String = UUID.randomUUID().toString, program: String, episode: Int, rating: Int)
 
 case class Result(producedKafkaTopicMessages: ArrayBuffer[Rating],
-                  consumedTransformedKafkaTopicMessages: ArrayBuffer[(String, String, Int, Int)],
                   selectedCassandraRatings: ArrayBuffer[(String, Int)]) {
   override def toString: String = {
     s"""produced kafka topic messages: $producedKafkaTopicMessages"
-        \nconsumed transformed kafka topic messages: $consumedTransformedKafkaTopicMessages"
         \nselected cassandra ratings: $selectedCassandraRatings"""
   }
 }
@@ -42,9 +40,9 @@ class Simulation {
       createKafkaTopic()
       createCassandraStore()
       val producedKafkaTopicMessages = produceKafkaTopicMessages()
-      val consumedTransformedKafkaTopicMessages = consumeKafkaTopicMessages()
+      consumeKafkaTopicMessages()
       val selectedCassandraRatings = selectFromCassandra()
-      Result(producedKafkaTopicMessages, consumedTransformedKafkaTopicMessages, selectedCassandraRatings)
+      Result(producedKafkaTopicMessages, selectedCassandraRatings)
     } finally {
       context.stop
     }
@@ -89,7 +87,7 @@ class Simulation {
     streamingContext.checkpoint("./target/output/test/checkpoint")
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
     val topics = Set(topic)
-    val ds: InputDStream[(String, Rating)] = KafkaUtils.createDirectStream(streamingContext, kafkaParams, topics)
+    val ds: InputDStream[(String, Rating)] = KafkaUtils.createDirectStream[String, Rating, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
     ds.saveAsTextFiles("./target/output/test/ds")
     ds.saveToCassandra("simulation", "ratings", SomeColumns("uuid", "program", "episode", "rating"))
     streamingContext.start()
