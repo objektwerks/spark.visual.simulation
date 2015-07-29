@@ -20,7 +20,11 @@ import scala.io.Source
 
 case class Result(kafkaMessages: ArrayBuffer[(String, String, String, String)],
                   cassandraMessages: ArrayBuffer[(String, String, Int, Int)],
-                  cassandraRatings: ArrayBuffer[(String, Int)])
+                  cassandraRatings: ArrayBuffer[(String, Int)]) {
+  override def toString: String = {
+    s"kafka messages: $kafkaMessages \ncassandra messages: $cassandraMessages \ncassandra ratings: $cassandraRatings"
+  }
+}
 
 class Simulation {
   val conf = new SparkConf().setMaster("local[2]").setAppName("sparky").set("spark.cassandra.connection.host", "127.0.0.1")
