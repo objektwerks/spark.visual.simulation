@@ -26,7 +26,6 @@ class Simulation {
   val conf = new SparkConf().setMaster("local[2]").setAppName("sparky").set("spark.cassandra.connection.host", "127.0.0.1")
   val context = new SparkContext(conf)
   val connector = CassandraConnector(conf)
-  val sqlContext = new CassandraSQLContext(context)
   val ratings = Source.fromInputStream(getClass.getResourceAsStream("/ratings")).getLines.toSeq
   val topic = "ratings"
 
@@ -104,6 +103,7 @@ class Simulation {
   }
 
   def selectFromCassandra(): ArrayBuffer[(String, Int)] = {
+    val sqlContext = new CassandraSQLContext(context)
     val df = sqlContext.sql("select program, rating from simulation.ratings")
     val rows = df.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()
     val data = ArrayBuffer[(String, Int)]()
