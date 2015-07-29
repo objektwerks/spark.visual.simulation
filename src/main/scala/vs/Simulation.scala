@@ -2,6 +2,7 @@ package vs
 
 import java.util.{Properties, UUID}
 
+import com.datastax.spark.connector.SomeColumns
 import com.datastax.spark.connector.cql.CassandraConnector
 import kafka.admin.AdminUtils
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
@@ -16,7 +17,9 @@ import org.apache.spark.{SparkConf, SparkContext}
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
-case class Result(producedKafkaTopicMessages: ArrayBuffer[(String, String, String, String)],
+case class Rating(uuid: String = UUID.randomUUID().toString, program: String, episode: Int, rating: Int)
+
+case class Result(producedKafkaTopicMessages: ArrayBuffer[Rating],
                   consumedTransformedKafkaTopicMessages: ArrayBuffer[(String, String, Int, Int)],
                   selectedCassandraRatings: ArrayBuffer[(String, Int)]) {
   override def toString: String = {
@@ -39,7 +42,6 @@ class Simulation {
       createCassandraStore()
       val producedKafkaTopicMessages = produceKafkaTopicMessages()
       val consumedTransformedKafkaTopicMessages = consumeKafkaTopicMessages()
-      saveToCassandra(consumedTransformedKafkaTopicMessages)
       val selectedCassandraRatings = selectFromCassandra()
       Result(producedKafkaTopicMessages, consumedTransformedKafkaTopicMessages, selectedCassandraRatings)
     } finally {
@@ -53,6 +55,7 @@ class Simulation {
     metadata.partitionsMetadata.foreach(println)
     if (metadata.topic != topic) {
       AdminUtils.createTopic(zkClient, topic, 1, 1)
+      println(s"$topic created!")
     }
   }
 
@@ -64,52 +67,33 @@ class Simulation {
     }
   }
 
-  def produceKafkaTopicMessages(): ArrayBuffer[(String, String, String, String)] = {
+  def produceKafkaTopicMessages(): ArrayBuffer[Rating] = {
     val props = new Properties
     props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
     val config = new ProducerConfig(props)
-    val producer = new Producer[String, String](config)
-    val messages = ArrayBuffer[(String, String, String, String)]()
+    val producer = new Producer[String, Rating](config)
+    val messages = ArrayBuffer[Rating]()
     ratings foreach { l =>
       val fields = l.split(",").map(_.trim)
-      val (program, episode, rating) = fields
-      producer.send(KeyedMessage[String, String](topic = topic, key = program, partKey = program, message = s"$episode,$rating"))
-      messages += (program, episode, rating)
+      val rating = Rating(program = fields(0), episode = fields(1).toInt, rating = fields(2).toInt)
+      producer.send(KeyedMessage[String, Rating](topic = topic, key = rating.program, partKey = rating.program, message = rating))
+      messages += rating
     }
     messages
   }
 
-  def consumeKafkaTopicMessages(): ArrayBuffer[(String, String, Int, Int)] = {
+  def consumeKafkaTopicMessages(): Unit = {
+    import com.datastax.spark.connector.streaming._
     val streamingContext = new StreamingContext(context, Milliseconds(1000))
     streamingContext.checkpoint("./target/output/test/checkpoint")
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
     val topics = Set(topic)
     val ds = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
     ds.saveAsTextFiles("./target/output/test/ds")
-    val messages = ArrayBuffer[(String, String, Int, Int)]()
-    ds foreachRDD { rdd =>
-      rdd foreach { t =>
-        val uuid = UUID.randomUUID.toString
-        val program = t._1
-        val episodeRating = t._2.split(",").map(_.toInt)
-        val (episode, rating) = (episodeRating(0), episodeRating(1))
-        val tuple = (uuid, program, episode, rating)
-        messages += tuple
-      }
-    }
+    ds.saveToCassandra("simulation", "ratings", SomeColumns("uuid", "program", "episode", "rating"))
     streamingContext.start()
     streamingContext.awaitTerminationOrTimeout(3000)
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
-    messages
-  }
-
-  def saveToCassandra(messages: ArrayBuffer[(String, String, Int, Int)]): Unit = {
-    messages foreach { m =>
-      val (uuid, program, episode, rating) = m
-      connector.withSessionDo { session =>
-        session.execute(s"INSERT INTO simulation.ratings(uuid, program, episode, rating) VALUES ($uuid, $program, $episode, $rating);")
-      }
-    }
   }
 
   def selectFromCassandra(): ArrayBuffer[(String, Int)] = {
