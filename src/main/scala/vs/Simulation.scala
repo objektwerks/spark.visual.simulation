@@ -1,7 +1,5 @@
 package vs
 
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
 import java.util.{Properties, UUID}
 
 import com.datastax.spark.connector.cql.CassandraConnector
@@ -73,10 +71,10 @@ class Simulation {
     val producer = new Producer[String, String](config)
     val messages = ArrayBuffer[(String, String, String, String)]()
     ratings foreach { l =>
-      val fields: Array[String] = l.split(",").map(_.trim)
-      producer.send(KeyedMessage[String, String](topic = topic, key = fields(0), partKey = fields(0), message = s"$fields(1),$fields(2)"))
-      val tuple = (LocalTime.now().format(DateTimeFormatter.ofPattern("mm:ss")), fields(0), fields(1), fields(2))
-      messages += tuple
+      val fields = l.split(",").map(_.trim)
+      val (program, episode, rating) = fields
+      producer.send(KeyedMessage[String, String](topic = topic, key = program, partKey = program, message = s"$episode,$rating"))
+      messages += (program, episode, rating)
     }
     messages
   }
