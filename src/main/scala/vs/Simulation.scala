@@ -1,12 +1,13 @@
 package vs
 
+import java.io.{ByteArrayInputStream, ObjectInputStream}
 import java.util.{Properties, UUID}
 
 import com.datastax.spark.connector.SomeColumns
 import com.datastax.spark.connector.cql.CassandraConnector
 import kafka.admin.AdminUtils
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
-import kafka.serializer.StringDecoder
+import kafka.serializer.{Decoder, StringDecoder}
 import kafka.utils.ZKStringSerializer
 import org.I0Itec.zkclient.ZkClient
 import org.apache.spark.sql.cassandra.CassandraSQLContext
@@ -19,6 +20,15 @@ import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
 case class Rating(uuid: String = UUID.randomUUID().toString, program: String, episode: Int, rating: Int)
+
+class RatingDecoder extends Decoder[Rating] {
+  override def fromBytes(bytes: Array[Byte]): Rating = {
+    val is = new ObjectInputStream(new ByteArrayInputStream(bytes))
+    val o = is.readObject()
+    is.close()
+    o.asInstanceOf[Rating]
+  }
+}
 
 case class Result(producedKafkaTopicMessages: ArrayBuffer[Rating],
                   selectedCassandraRatings: ArrayBuffer[(String, Int)]) {
@@ -87,7 +97,7 @@ class Simulation {
     streamingContext.checkpoint("./target/output/test/checkpoint")
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
     val topics = Set(topic)
-    val ds: InputDStream[(String, Rating)] = KafkaUtils.createDirectStream[String, Rating, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
+    val ds: InputDStream[(String, Rating)] = KafkaUtils.createDirectStream[String, Rating, StringDecoder, RatingDecoder](streamingContext, kafkaParams, topics)
     ds.saveAsTextFiles("./target/output/test/ds")
     ds.saveToCassandra("simulation", "ratings", SomeColumns("uuid", "program", "episode", "rating"))
     streamingContext.start()
