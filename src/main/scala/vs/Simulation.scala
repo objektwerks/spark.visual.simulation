@@ -1,5 +1,6 @@
 package vs
 
+import java.io._
 import java.util.{Properties, UUID}
 
 import com.datastax.spark.connector.SomeColumns
@@ -18,8 +19,6 @@ import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
-import scala.pickling.Defaults._
-import scala.pickling.binary._
 
 case class Rating(uuid: String, program: String, episode: Int, rating: Int)
 
@@ -34,7 +33,15 @@ class RatingEncoder extends Encoder[Rating] with Serializable {
   }
 
   override def toBytes(rating: Rating): Array[Byte] = {
-    rating.pickle.value
+    val baos = new ByteArrayOutputStream()
+    val oos = new ObjectOutputStream(baos)
+    try {
+      oos.writeObject(rating)
+      baos.toByteArray
+    } finally {
+      baos.close()
+      oos.close()
+    }
   }
 }
 
@@ -44,7 +51,13 @@ class RatingDecoder extends Decoder[Rating] with Serializable {
   }
 
   override def fromBytes(bytes: Array[Byte]): Rating = {
-    bytes.unpickle[Rating]
+    val ois = new ObjectInputStream(new ByteArrayInputStream(bytes))
+    try {
+      val rating = ois.readObject()
+      rating.asInstanceOf[Rating]
+    } finally {
+      ois.close()
+    }
   }
 }
 
