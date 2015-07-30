@@ -91,7 +91,7 @@ class Simulation {
       val fields = l.split(",").map(_.trim)
       val rating = Rating(uuid = UUID.randomUUID().toString, program = fields(0), episode = fields(1).toInt, rating = fields(2).toInt)
       val bytes = encoder.toBytes(rating)
-      producer.send(KeyedMessage[String, Array[Byte]](topic = topic, key = rating.program, partKey = rating.program, message = bytes))
+      producer.send(KeyedMessage[String, Array[Byte]](topic = topic, key = rating.uuid, partKey = rating.program, message = bytes))
       messages += rating
     }
     messages
