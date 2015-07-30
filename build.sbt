@@ -1,6 +1,9 @@
 name := "objektwerks.visual.spark"
+
 version := "0.1"
+
 scalaVersion := "2.11.7"
+
 ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
 
 libraryDependencies ++= {
