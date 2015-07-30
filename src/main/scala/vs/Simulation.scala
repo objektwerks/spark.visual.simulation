@@ -4,13 +4,14 @@ import java.util.{Properties, UUID}
 
 import com.datastax.spark.connector.SomeColumns
 import com.datastax.spark.connector.cql.CassandraConnector
+import com.datastax.spark.connector.mapper.DefaultColumnMapper
 import kafka.admin.AdminUtils
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
 import kafka.serializer.{Decoder, Encoder, StringDecoder}
-import kafka.utils.ZKStringSerializer
+import kafka.utils.{VerifiableProperties, ZKStringSerializer}
 import org.I0Itec.zkclient.ZkClient
 import org.apache.spark.sql.cassandra.CassandraSQLContext
-import org.apache.spark.streaming.dstream.InputDStream
+import org.apache.spark.streaming.dstream.{DStream, InputDStream}
 import org.apache.spark.streaming.kafka.KafkaUtils
 import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -22,13 +23,18 @@ import scala.pickling.binary._
 
 case class Rating(uuid: String, program: String, episode: Int, rating: Int)
 
-class RatingEncoder extends Encoder[Rating] {
+object Rating {
+  implicit object Mapper extends DefaultColumnMapper[Rating](
+    Map("uuid" -> "uuid", "program" -> "program", "episode" -> "episode", "rating" -> "rating"))
+}
+
+class RatingEncoder(props: VerifiableProperties) extends Encoder[Rating] {
   override def toBytes(rating: Rating): Array[Byte] = {
     rating.pickle.value
   }
 }
 
-class RatingDecoder extends Decoder[Rating] {
+class RatingDecoder(props: VerifiableProperties) extends Decoder[Rating] {
   override def fromBytes(bytes: Array[Byte]): Rating = {
     bytes.unpickle[Rating]
   }
@@ -86,7 +92,7 @@ class Simulation {
     val config = new ProducerConfig(props)
     val producer = new Producer[String, Array[Byte]](config)
     val messages = ArrayBuffer[Rating]()
-    val encoder = new RatingEncoder
+    val encoder = new RatingEncoder(new VerifiableProperties())
     ratings foreach { l =>
       val fields = l.split(",").map(_.trim)
       val rating = Rating(uuid = UUID.randomUUID().toString, program = fields(0), episode = fields(1).toInt, rating = fields(2).toInt)
@@ -103,8 +109,9 @@ class Simulation {
     streamingContext.checkpoint("./target/output/test/checkpoint")
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
     val topics = Set(topic)
-    val ds: InputDStream[(String, Rating)] = KafkaUtils.createDirectStream[String, Rating, StringDecoder, RatingDecoder](streamingContext, kafkaParams, topics)
-    ds.saveAsTextFiles("./target/output/test/ds")
+    val is: InputDStream[(String, Rating)] = KafkaUtils.createDirectStream[String, Rating, StringDecoder, RatingDecoder](streamingContext, kafkaParams, topics)
+    is.saveAsTextFiles("./target/output/test/ds")
+    val ds: DStream[Rating] = is map { rdd => rdd._2 }
     ds.saveToCassandra("simulation", "ratings", SomeColumns("uuid", "program", "episode", "rating"))
     streamingContext.start()
     streamingContext.awaitTerminationOrTimeout(3000)
