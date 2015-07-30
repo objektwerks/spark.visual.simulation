@@ -1,13 +1,12 @@
 package vs
 
-import java.io.{ByteArrayInputStream, ObjectInputStream}
 import java.util.{Properties, UUID}
 
 import com.datastax.spark.connector.SomeColumns
 import com.datastax.spark.connector.cql.CassandraConnector
 import kafka.admin.AdminUtils
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
-import kafka.serializer.{Encoder, Decoder, StringDecoder}
+import kafka.serializer.{Decoder, Encoder, StringDecoder}
 import kafka.utils.ZKStringSerializer
 import org.I0Itec.zkclient.ZkClient
 import org.apache.spark.sql.cassandra.CassandraSQLContext
