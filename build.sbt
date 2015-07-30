@@ -34,6 +34,6 @@ scalacOptions ++= Seq(
   "-Xfatal-warnings"
 )
 
-javaOptions += "-server -Xss1m -Xmx2g"
+javaOptions += "-server -Xss1m -Xmx4g"
 
-fork in test := false
+fork in test := true

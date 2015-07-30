@@ -7,7 +7,7 @@ import com.datastax.spark.connector.cql.CassandraConnector
 import com.datastax.spark.connector.mapper.DefaultColumnMapper
 import kafka.admin.AdminUtils
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
-import kafka.serializer.{Decoder, Encoder, StringDecoder}
+import kafka.serializer.{DefaultDecoder, Decoder, Encoder, StringDecoder}
 import kafka.utils.{VerifiableProperties, ZKStringSerializer}
 import org.I0Itec.zkclient.ZkClient
 import org.apache.spark.sql.cassandra.CassandraSQLContext
@@ -28,13 +28,21 @@ object Rating {
     Map("uuid" -> "uuid", "program" -> "program", "episode" -> "episode", "rating" -> "rating"))
 }
 
-class RatingEncoder(props: VerifiableProperties) extends Encoder[Rating] {
+class RatingEncoder extends Encoder[Rating] with Serializable {
+  def this(props: VerifiableProperties) {
+    this()
+  }
+
   override def toBytes(rating: Rating): Array[Byte] = {
     rating.pickle.value
   }
 }
 
-class RatingDecoder(props: VerifiableProperties) extends Decoder[Rating] {
+class RatingDecoder extends Decoder[Rating] with Serializable {
+  def this(props: VerifiableProperties) {
+    this()
+  }
+
   override def fromBytes(bytes: Array[Byte]): Rating = {
     bytes.unpickle[Rating]
   }
@@ -49,7 +57,9 @@ case class Result(producedKafkaTopicMessages: ArrayBuffer[Rating],
 }
 
 class Simulation {
-  val conf = new SparkConf().setMaster("local[2]").setAppName("sparky").set("spark.cassandra.connection.host", "127.0.0.1")
+  val conf = new SparkConf().setMaster("local[2]").setAppName("sparky")
+    .set("spark.cassandra.connection.host", "127.0.0.1")
+    .set("spark.executor.memory", "2048m")
   val context = new SparkContext(conf)
   val connector = CassandraConnector(conf)
   val ratings = Source.fromInputStream(getClass.getResourceAsStream("/ratings")).getLines.toSeq
@@ -106,12 +116,9 @@ class Simulation {
   def consumeKafkaTopicMessages(): Unit = {
     import com.datastax.spark.connector.streaming._
     val streamingContext = new StreamingContext(context, Milliseconds(1000))
-    streamingContext.checkpoint("./target/output/test/checkpoint")
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
     val topics = Set(topic)
     val is: InputDStream[(String, Rating)] = KafkaUtils.createDirectStream[String, Rating, StringDecoder, RatingDecoder](streamingContext, kafkaParams, topics)
-    is.checkpoint(Milliseconds(1000))
-    is.saveAsTextFiles("./target/output/test/ds")
     val ds: DStream[Rating] = is map(_._2)
     ds.repartitionByCassandraReplica(keyspaceName = "simulation", tableName = "ratings", partitionsPerHost = 2)
     ds.saveToCassandra("simulation", "ratings", SomeColumns("uuid", "program", "episode", "rating"))
