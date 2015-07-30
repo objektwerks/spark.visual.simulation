@@ -11,6 +11,7 @@ import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
 import kafka.serializer.{Decoder, Encoder, StringDecoder}
 import kafka.utils.{VerifiableProperties, ZKStringSerializer}
 import org.I0Itec.zkclient.ZkClient
+import org.apache.commons.lang3.SerializationUtils
 import org.apache.spark.sql.cassandra.CassandraSQLContext
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
 import org.apache.spark.streaming.kafka.KafkaUtils
@@ -28,36 +29,18 @@ object Rating {
 }
 
 class RatingEncoder extends Encoder[Rating] with Serializable {
-  def this(props: VerifiableProperties) {
-    this()
-  }
+  def this(props: VerifiableProperties) { this() }
 
   override def toBytes(rating: Rating): Array[Byte] = {
-    val baos = new ByteArrayOutputStream()
-    val oos = new ObjectOutputStream(baos)
-    try {
-      oos.writeObject(rating)
-      baos.toByteArray
-    } finally {
-      baos.close()
-      oos.close()
-    }
+    SerializationUtils.serialize(rating)
   }
 }
 
 class RatingDecoder extends Decoder[Rating] with Serializable {
-  def this(props: VerifiableProperties) {
-    this()
-  }
+  def this(props: VerifiableProperties) { this() }
 
   override def fromBytes(bytes: Array[Byte]): Rating = {
-    val ois = new ObjectInputStream(new ByteArrayInputStream(bytes))
-    try {
-      val rating = ois.readObject()
-      rating.asInstanceOf[Rating]
-    } finally {
-      ois.close()
-    }
+    SerializationUtils.deserialize(bytes)
   }
 }
 
