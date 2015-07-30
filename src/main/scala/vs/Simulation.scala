@@ -111,7 +111,7 @@ class Simulation {
     val topics = Set(topic)
     val is: InputDStream[(String, Rating)] = KafkaUtils.createDirectStream[String, Rating, StringDecoder, RatingDecoder](streamingContext, kafkaParams, topics)
     is.saveAsTextFiles("./target/output/test/ds")
-    val ds: DStream[Rating] = is map { rdd => rdd._2 }
+    val ds: DStream[Rating] = is map(_._2)
     ds.saveToCassandra("simulation", "ratings", SomeColumns("uuid", "program", "episode", "rating"))
     streamingContext.start()
     streamingContext.awaitTerminationOrTimeout(3000)
