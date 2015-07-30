@@ -7,7 +7,7 @@ import com.datastax.spark.connector.SomeColumns
 import com.datastax.spark.connector.cql.CassandraConnector
 import kafka.admin.AdminUtils
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
-import kafka.serializer.{Decoder, StringDecoder}
+import kafka.serializer.{Encoder, Decoder, StringDecoder}
 import kafka.utils.ZKStringSerializer
 import org.I0Itec.zkclient.ZkClient
 import org.apache.spark.sql.cassandra.CassandraSQLContext
@@ -18,15 +18,20 @@ import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
+import scala.pickling.Defaults._
+import scala.pickling.binary._
 
-case class Rating(uuid: String = UUID.randomUUID().toString, program: String, episode: Int, rating: Int)
+case class Rating(uuid: String, program: String, episode: Int, rating: Int)
+
+class RatingEncoder extends Encoder[Rating] {
+  override def toBytes(rating: Rating): Array[Byte] = {
+    rating.pickle.value
+  }
+}
 
 class RatingDecoder extends Decoder[Rating] {
   override def fromBytes(bytes: Array[Byte]): Rating = {
-    val is = new ObjectInputStream(new ByteArrayInputStream(bytes))
-    val o = is.readObject()
-    is.close()
-    o.asInstanceOf[Rating]
+    bytes.unpickle[Rating]
   }
 }
 
@@ -80,12 +85,14 @@ class Simulation {
     val props = new Properties
     props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
     val config = new ProducerConfig(props)
-    val producer = new Producer[String, Rating](config)
+    val producer = new Producer[String, Array[Byte]](config)
     val messages = ArrayBuffer[Rating]()
+    val encoder = new RatingEncoder
     ratings foreach { l =>
       val fields = l.split(",").map(_.trim)
-      val rating = Rating(program = fields(0), episode = fields(1).toInt, rating = fields(2).toInt)
-      producer.send(KeyedMessage[String, Rating](topic = topic, key = rating.program, partKey = rating.program, message = rating))
+      val rating = Rating(uuid = UUID.randomUUID().toString, program = fields(0), episode = fields(1).toInt, rating = fields(2).toInt)
+      val bytes = encoder.toBytes(rating)
+      producer.send(KeyedMessage[String, Array[Byte]](topic = topic, key = rating.program, partKey = rating.program, message = bytes))
       messages += rating
     }
     messages

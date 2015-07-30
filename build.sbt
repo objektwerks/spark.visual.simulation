@@ -13,6 +13,7 @@ libraryDependencies ++= {
     "org.apache.spark" % "spark-streaming-kafka_2.11" % sparkVersion,
     "org.apache.kafka" % "kafka_2.11" % "0.8.2.1",
     "com.datastax.spark" % "spark-cassandra-connector_2.11" % "1.4.0-M1",
+    "org.scala-lang.modules" % "scala-pickling_2.11" % "0.10.1",
     "org.slf4j" % "slf4j-api" % "1.7.12",
     "org.scalatest" % "scalatest_2.11" % "2.2.5" % "test"
   )
