@@ -21,6 +21,9 @@ import scala.io.Source
 import scala.pickling.Defaults._
 import scala.pickling.binary._
 
+// Rating and RatingEncoder / Decoder should work if I can solve the Spark consuming Kafka topic issue.
+// Otherwise, this code produces an OOM error. Not to worry, Java object serialization produces a stream
+// corrupted error. But, again, Spark streaming is not consuming Kafka topic messages correctly.
 case class Rating(program: String, season: Int, episode: Int, rating: Int)
 
 object Rating {
