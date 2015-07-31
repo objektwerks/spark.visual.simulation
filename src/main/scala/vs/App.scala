@@ -1,5 +1,7 @@
 package vs
 
+import org.apache.spark.metrics.source
+
 import scalafx.Includes._
 import scala.concurrent.ExecutionContext
 import scalafx.application.JFXApp
@@ -12,24 +14,9 @@ import scalafx.scene.layout.VBox
 object App extends JFXApp {
   implicit def ec = ExecutionContext.global
 
-  val playSimulationButton = new Button {
-    text = "Play"
-    onAction = handle {
-/*
-      val simulation = new Simulation()
-      val result = simulation.play()
-*/
-    }
-  }
-
-  val toolbar = new ToolBar {
-    content = List( playSimulationButton )
-  }
-
   val sourceLabel = new Label { text = "Source"}
 
-  val sourceTable = new TableView[String]() {
-  }
+  val sourceResultLabel = new Label
 
   val flowLabel = new Label { text = "Flow"}
 
@@ -46,12 +33,28 @@ object App extends JFXApp {
     maxHeight = 800
     spacing = 6
     padding = Insets(6)
-    children = List(sourceLabel, sourceTable, flowLabel, flowChart, sinkLabel, sinkChart)
+    children = List(sourceLabel, sourceResultLabel, flowLabel, flowChart, sinkLabel, sinkChart)
+  }
+
+  val playSimulationButton = new Button {
+    text = "Play"
+    onAction = handle {
+      try {
+        playSimulationButton { disable = true }
+        val simulation = new Simulation()
+        val result = simulation.play()
+        sourceResultLabel.text = s"${result.producedKafkaMessages} produced."
+      } finally { playSimulationButton { disable = false } }
+    }
+  }
+
+  val toolbar = new ToolBar {
+    content = List( playSimulationButton )
   }
 
   val appPane = new VBox {
     maxWidth = 800
-    maxHeight = 800
+    maxHeight = 600
     spacing = 6
     padding = Insets(6)
     children = List(toolbar, simulationPane)
