@@ -21,9 +21,6 @@ import scala.io.Source
 import scala.pickling.Defaults._
 import scala.pickling.binary._
 
-// Rating and RatingEncoder / Decoder should work if I can solve the Spark consuming Kafka topic issue.
-// Otherwise, this code produces an OOM error. Not to worry, Java object serialization produces a stream
-// corrupted error. But, again, Spark streaming is not consuming Kafka topic messages correctly.
 case class Rating(program: String, season: Int, episode: Int, rating: Int)
 
 object Rating {
@@ -104,7 +101,6 @@ class Simulation {
     val streamingContext = new StreamingContext(context, Milliseconds(3000))
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
     val topics = Set(topic)
-    // Not consuming Kafka topic messages. Data received is a partial of the first topic message. Just using simple strings herein.
     val is: InputDStream[(String, String)] = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
     val ds: DStream[(String, Int, Int, Int)] = is map { rdd =>
       val fields: Array[String] = rdd._2.split(",")
