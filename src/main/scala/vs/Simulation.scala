@@ -91,9 +91,12 @@ class Simulation {
     props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
     val config = new ProducerConfig(props)
     val producer = new Producer[String, String](config)
+    val messages = ArrayBuffer[KeyedMessage[String, String]]()
     ratings foreach { l =>
-      producer.send(KeyedMessage[String, String](topic = topic, key = l, partKey = 1, message = l))
+      messages += KeyedMessage[String, String](topic = topic, key = l, partKey = 1, message = l)
     }
+    producer.send(messages:_*)
+    println(s"${messages.size} published to kafka topic: $topic")
   }
 
   def consumeKafkaTopicMessages(): Unit = {
