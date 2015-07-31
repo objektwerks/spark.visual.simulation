@@ -21,7 +21,7 @@ import scala.io.Source
 import scala.pickling.Defaults._
 import scala.pickling.binary._
 
-case class Rating(uuid: String, program: String, episode: Int, rating: Int)
+case class Rating(program: String, season: Int, episode: Int, rating: Int)
 
 object Rating {
   implicit object Mapper extends DefaultColumnMapper[Rating](
