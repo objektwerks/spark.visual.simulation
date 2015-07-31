@@ -19,12 +19,11 @@ object App extends JFXApp {
 
   val flowLabel = new Label { text = "Flow"}
 
-  val flowChart = new LineChart(NumberAxis("Episodes", 0, 100, 10), NumberAxis("Ratings", 0, 100, 10)) {
-  }
+  val flowChart = new LineChart(NumberAxis("Episodes", 0, 100, 10), NumberAxis("Ratings", 0, 100, 10))
 
   val sinkLabel = new Label { text = "Sink"}
 
-  val sinkChart = new PieChart()
+  val sinkChart = new PieChart { clockwise = false }
 
   val simulationPane = new VBox {
     children = List(sourceLabel, sourceResultLabel, flowLabel, flowChart, sinkLabel, sinkChart)
@@ -38,6 +37,7 @@ object App extends JFXApp {
         val simulation = new Simulation()
         val result = simulation.play()
         sourceResultLabel.text = s"${result.producedKafkaMessages} produced."
+        // Todo
         sinkChart.data = result.selectedCassandraRatings map { t => PieChart.Data(t._1, t._2) }
       } finally { playSimulationButton { disable = false } }
     }
