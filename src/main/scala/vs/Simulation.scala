@@ -118,24 +118,6 @@ class Simulation {
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
   }
 
-/*
-  def consumeKafkaTopicMessages(): Unit = {
-    import com.datastax.spark.connector._
-    val kafkaParams = Map("metadata.broker.list" -> "localhost:9092")
-    val offsetRanges = Array(OffsetRange(topic = topic, partition = 0, fromOffset = 0, untilOffset = 30))
-    // Not consuming Kafka topic messages. Data received is a partial of the first topic message. Just using simple strings herein.
-    val rdd = KafkaUtils.createRDD[String, String, StringDecoder, StringDecoder](context, kafkaParams, offsetRanges)
-    val tuples: Seq[(String, Int, Int, Int)] = rdd.collect.map { t =>
-      println(t)
-      val fields: Array[String] = t._2.split(",")
-      val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
-      tuple
-    }
-    val ratings = context.parallelize(tuples)
-    ratings.saveAsCassandraTable("simulation", "ratings", SomeColumns("program", "season", "episode", "rating"))
-  }
-*/
-
   def selectFromCassandra(): ArrayBuffer[(String, Long)] = {
     val sqlContext = new CassandraSQLContext(context)
     val df = sqlContext.sql("select program, rating from simulation.ratings")
