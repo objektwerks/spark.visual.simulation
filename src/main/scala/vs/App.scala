@@ -1,13 +1,12 @@
 package vs
 
-import org.apache.spark.metrics.source
-
-import scalafx.Includes._
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
+import scalafx.Includes._
 import scalafx.application.JFXApp
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
-import scalafx.scene.chart.{PieChart, NumberAxis, LineChart}
+import scalafx.scene.chart.{LineChart, NumberAxis, PieChart}
 import scalafx.scene.control._
 import scalafx.scene.layout.VBox
 
@@ -25,8 +24,7 @@ object App extends JFXApp {
 
   val sinkLabel = new Label { text = "Sink"}
 
-  val sinkChart = new PieChart() {
-  }
+  val sinkChart = new PieChart()
 
   val simulationPane = new VBox {
     children = List(sourceLabel, sourceResultLabel, flowLabel, flowChart, sinkLabel, sinkChart)
@@ -40,6 +38,7 @@ object App extends JFXApp {
         val simulation = new Simulation()
         val result = simulation.play()
         sourceResultLabel.text = s"${result.producedKafkaMessages} produced."
+        sinkChart.data = result.selectedCassandraRatings map { t => PieChart.Data(t._1, t._2) }
       } finally { playSimulationButton { disable = false } }
     }
   }
