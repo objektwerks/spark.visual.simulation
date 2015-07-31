@@ -25,9 +25,7 @@ case class Result(producedKafkaTopicMessageCount: Int, selectedCassandraRatings:
 }
 
 class Simulation {
-  val conf = new SparkConf().setMaster("local[2]").setAppName("sparky")
-    .set("spark.cassandra.connection.host", "127.0.0.1")
-    .set("spark.executor.memory", "1024m")
+  val conf = new SparkConf().setMaster("local[2]").setAppName("sparky").set("spark.cassandra.connection.host", "127.0.0.1")
   val context = new SparkContext(conf)
   val connector = CassandraConnector(conf)
   val ratings = Source.fromInputStream(getClass.getResourceAsStream("/ratings")).getLines.toSeq
@@ -60,7 +58,7 @@ class Simulation {
     connector.withSessionDo { session =>
       session.execute("DROP KEYSPACE IF EXISTS simulation;")
       session.execute("CREATE KEYSPACE simulation WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
-      session.execute("CREATE TABLE simulation.ratings(program text, season int, episode int, rating int, PRIMARY KEY (program, season, episode));")
+      session.execute("CREATE TABLE simulation.ratings(program text, season text, episode text, rating text, PRIMARY KEY (program, season, episode));")
     }
   }
 
@@ -71,11 +69,8 @@ class Simulation {
     val producer = new Producer[String, String](config)
     var count = 0
     ratings foreach { l =>
-      val fields = l.split(",")
-      val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
-      println(tuple)
       count += 1
-      producer.send(KeyedMessage[String, String](topic = topic, key = l, partKey = count, message = l))
+      producer.send(KeyedMessage[String, String](topic = topic, key = l, partKey = 1, message = l))
     }
     println(s"$count messages published to kafka topic: $topic")
     count
@@ -83,19 +78,19 @@ class Simulation {
 
   def consumeKafkaTopicMessages(): Unit = {
     import com.datastax.spark.connector.streaming._
-    val streamingContext = new StreamingContext(context, Milliseconds(1000))
+    val streamingContext = new StreamingContext(context, Milliseconds(3000))
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
     val topics = Set(topic)
     val is: InputDStream[(String, String)] = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
-    val ds: DStream[(String, Int, Int, Int)] = is map { rdd =>
-      val fields = rdd._2.split(",")
-      val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
+    val ds: DStream[(String, String, String, String)] = is map { rdd =>
+      val fields: Array[String] = rdd._2.split(",")
+      val tuple = (fields(0), fields(1), fields(2), fields(3))
       tuple
     }
     ds.repartitionByCassandraReplica(keyspaceName = "simulation", tableName = "ratings", partitionsPerHost = 2)
     ds.saveToCassandra("simulation", "ratings", SomeColumns("program", "season", "episode", "rating"))
     streamingContext.start()
-    streamingContext.awaitTerminationOrTimeout(3000)
+    streamingContext.awaitTerminationOrTimeout(30000)
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
   }
 
