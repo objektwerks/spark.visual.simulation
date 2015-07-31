@@ -40,9 +40,9 @@ class RatingDecoder(props: VerifiableProperties) extends Decoder[Rating] {
   }
 }
 
-case class Result(selectedCassandraRatings: ArrayBuffer[(String, Long)]) {
+case class Result(producedKafkaMessages: Int, selectedCassandraRatings: ArrayBuffer[(String, Long)]) {
   override def toString: String = {
-    s"Selected cassandra ratings: ${selectedCassandraRatings.foreach(println)}"
+    s"Producted kafka messages: $producedKafkaMessages : Selected cassandra ratings: ${selectedCassandraRatings.foreach(println)}"
   }
 }
 
@@ -57,9 +57,9 @@ class Simulation {
     try {
       createKafkaTopic()
       createCassandraStore()
-      produceKafkaTopicMessages()
+      val count = produceKafkaTopicMessages()
       consumeKafkaTopicMessages()
-      Result(selectFromCassandra())
+      Result(count, selectFromCassandra())
     } finally {
       context.stop
     }
@@ -71,7 +71,6 @@ class Simulation {
     metadata.partitionsMetadata.foreach(println)
     if (metadata.topic != topic) {
       AdminUtils.createTopic(zkClient, topic, 1, 1)
-      println(s"$topic created!")
     }
   }
 
@@ -83,7 +82,7 @@ class Simulation {
     }
   }
 
-  def produceKafkaTopicMessages(): Unit = {
+  def produceKafkaTopicMessages(): Int = {
     val props = new Properties
     props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
     val config = new ProducerConfig(props)
@@ -93,7 +92,7 @@ class Simulation {
       messages += KeyedMessage[String, String](topic = topic, key = l, partKey = 0, message = l)
     }
     producer.send(messages:_*)
-    println(s"${messages.size} published to kafka topic: $topic")
+    messages.size
   }
 
   def consumeKafkaTopicMessages(): Unit = {
