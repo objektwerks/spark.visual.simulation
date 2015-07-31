@@ -4,10 +4,11 @@ import java.util.Properties
 
 import com.datastax.spark.connector.SomeColumns
 import com.datastax.spark.connector.cql.CassandraConnector
+import com.datastax.spark.connector.mapper.DefaultColumnMapper
 import kafka.admin.AdminUtils
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
-import kafka.serializer.StringDecoder
-import kafka.utils.ZKStringSerializer
+import kafka.serializer.{Encoder, Decoder, StringDecoder}
+import kafka.utils.{VerifiableProperties, ZKStringSerializer}
 import org.I0Itec.zkclient.ZkClient
 import org.apache.spark.sql.cassandra.CassandraSQLContext
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
@@ -17,10 +18,31 @@ import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
+import scala.pickling.Defaults._
+import scala.pickling.binary._
 
-case class Result(producedKafkaTopicMessageCount: Int, selectedCassandraRatings: ArrayBuffer[(String, Int)]) {
+case class Rating(uuid: String, program: String, episode: Int, rating: Int)
+
+object Rating {
+  implicit object Mapper extends DefaultColumnMapper[Rating](
+    Map("program" -> "program", "season" -> "season", "episode" -> "episode", "rating" -> "rating"))
+}
+
+class RatingEncoder(props: VerifiableProperties) extends Encoder[Rating] {
+  override def toBytes(rating: Rating): Array[Byte] = {
+    rating.pickle.value
+  }
+}
+
+class RatingDecoder(props: VerifiableProperties) extends Decoder[Rating] {
+  override def fromBytes(bytes: Array[Byte]): Rating = {
+    bytes.unpickle[Rating]
+  }
+}
+
+case class Result(selectedCassandraRatings: ArrayBuffer[(String, Int)]) {
   override def toString: String = {
-    s"""Produced kafka topic message count: $producedKafkaTopicMessageCount \nselected cassandra ratings: ${selectedCassandraRatings.foreach(println)}"""
+    s"Selected cassandra ratings: ${selectedCassandraRatings.foreach(println)}"
   }
 }
 
@@ -35,10 +57,9 @@ class Simulation {
     try {
       createKafkaTopic()
       createCassandraStore()
-      val producedKafkaTopicMessages = produceKafkaTopicMessages()
+      produceKafkaTopicMessages()
       consumeKafkaTopicMessages()
-      val selectedCassandraRatings = selectFromCassandra()
-      Result(producedKafkaTopicMessages, selectedCassandraRatings)
+      Result(selectFromCassandra())
     } finally {
       context.stop
     }
@@ -58,22 +79,18 @@ class Simulation {
     connector.withSessionDo { session =>
       session.execute("DROP KEYSPACE IF EXISTS simulation;")
       session.execute("CREATE KEYSPACE simulation WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
-      session.execute("CREATE TABLE simulation.ratings(program text, season text, episode text, rating text, PRIMARY KEY (program, season, episode));")
+      session.execute("CREATE TABLE simulation.ratings(program text, season int, episode int, rating int, PRIMARY KEY (program, season, episode));")
     }
   }
 
-  def produceKafkaTopicMessages(): Int = {
+  def produceKafkaTopicMessages(): Unit = {
     val props = new Properties
     props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
     val config = new ProducerConfig(props)
     val producer = new Producer[String, String](config)
-    var count = 0
     ratings foreach { l =>
-      count += 1
       producer.send(KeyedMessage[String, String](topic = topic, key = l, partKey = 1, message = l))
     }
-    println(s"$count messages published to kafka topic: $topic")
-    count
   }
 
   def consumeKafkaTopicMessages(): Unit = {
@@ -81,10 +98,11 @@ class Simulation {
     val streamingContext = new StreamingContext(context, Milliseconds(3000))
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
     val topics = Set(topic)
+    // Not consumeing topic messages. Data received is a partial of 1 topic message. Just using simple strings.
     val is: InputDStream[(String, String)] = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
-    val ds: DStream[(String, String, String, String)] = is map { rdd =>
+    val ds: DStream[(String, Int, Int, Int)] = is map { rdd =>
       val fields: Array[String] = rdd._2.split(",")
-      val tuple = (fields(0), fields(1), fields(2), fields(3))
+      val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
       tuple
     }
     ds.repartitionByCassandraReplica(keyspaceName = "simulation", tableName = "ratings", partitionsPerHost = 2)
@@ -93,6 +111,24 @@ class Simulation {
     streamingContext.awaitTerminationOrTimeout(30000)
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
   }
+
+/*
+  def consumeKafkaTopicMessages(): Unit = {
+    import com.datastax.spark.connector._
+    val kafkaParams = Map("metadata.broker.list" -> "localhost:9092")
+    val offsetRanges = Array(OffsetRange(topic = topic, partition = 0, fromOffset = 0, untilOffset = 30))
+    // Not consumeing topic messages. Data received is a partial of 1 topic message. Just using simple strings.
+    val rdd = KafkaUtils.createRDD[String, String, StringDecoder, StringDecoder](context, kafkaParams, offsetRanges)
+    val tuples: Seq[(String, Int, Int, Int)] = rdd.collect.map { t =>
+      println(t)
+      val fields: Array[String] = t._2.split(",")
+      val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
+      tuple
+    }
+    val ratings = context.parallelize(tuples)
+    ratings.saveAsCassandraTable("simulation", "ratings", SomeColumns("program", "season", "episode", "rating"))
+  }
+*/
 
   def selectFromCassandra(): ArrayBuffer[(String, Int)] = {
     val sqlContext = new CassandraSQLContext(context)
