@@ -91,3 +91,8 @@ Output
 
 1. ./target/output/test
 2. ./target/output/main
+
+Kafka Topics
+------------
+- kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic license
+- kafka-topics.sh --zookeeper localhost:2181 --list
