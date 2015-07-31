@@ -29,10 +29,6 @@ object App extends JFXApp {
   }
 
   val simulationPane = new VBox {
-    maxWidth = 800
-    maxHeight = 800
-    spacing = 6
-    padding = Insets(6)
     children = List(sourceLabel, sourceResultLabel, flowLabel, flowChart, sinkLabel, sinkChart)
   }
 
