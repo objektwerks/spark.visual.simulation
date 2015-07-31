@@ -40,10 +40,9 @@ class RatingDecoder(props: VerifiableProperties) extends Decoder[Rating] {
   }
 }
 
-case class Result(producedKafkaMessages: Int, selectedPieChartDataFromCassandra: ArrayBuffer[(String, Long)]) {
-  override def toString: String = {
-    s"Producted kafka messages: $producedKafkaMessages : Selected cassandra ratings: ${selectedPieChartDataFromCassandra.foreach(println)}"
-  }
+case class Result(producedKafkaMessages: Int,
+                  selectedLineChartDataFromCassandra: ArrayBuffer[(String, Long)],
+                  selectedPieChartDataFromCassandra: ArrayBuffer[(String, Long)]) {
 }
 
 class Simulation {
@@ -59,7 +58,9 @@ class Simulation {
       createCassandraStore()
       val count = produceKafkaTopicMessages()
       consumeKafkaTopicMessages()
-      Result(count, selectPieChartDataFromCassandra())
+      val selectedLineChartDataFromCassandra = selectLineChartDataFromCassandra()
+      val selectedPioChartDataFromCassandra = selectPieChartDataFromCassandra()
+      Result(count, selectedLineChartDataFromCassandra, selectedPioChartDataFromCassandra)
     } finally {
       context.stop
     }
@@ -111,6 +112,17 @@ class Simulation {
     streamingContext.start()
     streamingContext.awaitTerminationOrTimeout(3000)
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
+  }
+
+  def selectLineChartDataFromCassandra(): ArrayBuffer[(String, Long)] = {
+    val sqlContext = new CassandraSQLContext(context)
+    val rows = sqlContext.sql("select program, rating from simulation.ratings")
+    val data = ArrayBuffer[(String, Long)]()
+    rows foreach { r =>
+      val tuple = (r.getString(0), r.getLong(1))
+      data += tuple
+    }
+    data
   }
 
   def selectPieChartDataFromCassandra(): ArrayBuffer[(String, Long)] = {
