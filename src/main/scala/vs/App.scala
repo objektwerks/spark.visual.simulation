@@ -16,8 +16,6 @@ object App extends JFXApp {
     text = "Source"
   }
 
-  val sourceResultLabel = new Label
-
   val flowLabel = new Label {
     text = "Flow"
   }
@@ -33,7 +31,7 @@ object App extends JFXApp {
   }
 
   val simulationPane = new VBox {
-    children = List(sourceLabel, sourceResultLabel, flowLabel, flowChart, sinkLabel, sinkChart)
+    children = List(sourceLabel, flowLabel, flowChart, sinkLabel, sinkChart)
   }
 
   val playSimulationButton = new Button {
@@ -46,7 +44,7 @@ object App extends JFXApp {
       val simulation = new Simulation()
       val result = simulation.play()
       playSimulationButton.disable = true
-      sourceResultLabel.text = s"${result.producedKafkaMessages} produced."
+      sourceLabel.text = s"Source: ${result.producedKafkaMessages} messages produced for topic ratings."
       // Todo
       sinkChart.data = result.selectedPieChartDataFromCassandra map { t => PieChart.Data(t._1, t._2) }
     } finally {
