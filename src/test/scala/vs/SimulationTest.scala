@@ -7,7 +7,7 @@ class SimulationTest extends FunSuite {
     val simulation = new Simulation()
     val result = simulation.play()
     assert(result.producedKafkaMessages > 0)
-    assert(result.selectedCassandraRatings.nonEmpty)
+    assert(result.selectedPieChartDataFromCassandra.nonEmpty)
     println(result.toString)
   }
 }

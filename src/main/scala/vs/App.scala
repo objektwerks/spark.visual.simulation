@@ -1,6 +1,5 @@
 package vs
 
-import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 import scalafx.Includes._
 import scalafx.application.JFXApp
@@ -13,17 +12,25 @@ import scalafx.scene.layout.VBox
 object App extends JFXApp {
   implicit def ec = ExecutionContext.global
 
-  val sourceLabel = new Label { text = "Source"}
+  val sourceLabel = new Label {
+    text = "Source"
+  }
 
   val sourceResultLabel = new Label
 
-  val flowLabel = new Label { text = "Flow"}
+  val flowLabel = new Label {
+    text = "Flow"
+  }
 
   val flowChart = new LineChart(NumberAxis("Episodes", 0, 100, 10), NumberAxis("Ratings", 0, 100, 10))
 
-  val sinkLabel = new Label { text = "Sink"}
+  val sinkLabel = new Label {
+    text = "Sink"
+  }
 
-  val sinkChart = new PieChart { clockwise = false }
+  val sinkChart = new PieChart {
+    clockwise = false
+  }
 
   val simulationPane = new VBox {
     children = List(sourceLabel, sourceResultLabel, flowLabel, flowChart, sinkLabel, sinkChart)
@@ -31,20 +38,24 @@ object App extends JFXApp {
 
   val playSimulationButton = new Button {
     text = "Play"
-    onAction = handle {
-      try {
-        playSimulationButton { disable = true }
-        val simulation = new Simulation()
-        val result = simulation.play()
-        sourceResultLabel.text = s"${result.producedKafkaMessages} produced."
-        // Todo
-        sinkChart.data = result.selectedCassandraRatings map { t => PieChart.Data(t._1, t._2) }
-      } finally { playSimulationButton { disable = false } }
+    onAction = handle { hanldePlaySimulationButton() }
+  }
+
+  def hanldePlaySimulationButton(): Unit = {
+    try {
+      val simulation = new Simulation()
+      val result = simulation.play()
+      playSimulationButton.disable = true
+      sourceResultLabel.text = s"${result.producedKafkaMessages} produced."
+      // Todo
+      sinkChart.data = result.selectedPieChartDataFromCassandra map { t => PieChart.Data(t._1, t._2) }
+    } finally {
+      playSimulationButton.disable = false
     }
   }
 
   val toolbar = new ToolBar {
-    content = List( playSimulationButton )
+    content = List(playSimulationButton)
   }
 
   val appPane = new VBox {
