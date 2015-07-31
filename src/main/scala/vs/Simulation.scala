@@ -143,7 +143,6 @@ class Simulation {
     val data = ArrayBuffer[(String, Long)]()
     rows foreach { r =>
       val tuple = (r.getString(0), r.getLong(1))
-      println(s"cassandra: $tuple")
       data += tuple
     }
     data
