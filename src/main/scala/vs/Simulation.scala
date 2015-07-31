@@ -60,7 +60,7 @@ class Simulation {
     connector.withSessionDo { session =>
       session.execute("DROP KEYSPACE IF EXISTS simulation;")
       session.execute("CREATE KEYSPACE simulation WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
-      session.execute("CREATE TABLE simulation.ratings(program text, season int, episode int, rating int PRIMARY KEY (program, season, episode);")
+      session.execute("CREATE TABLE simulation.ratings(program text, season int, episode int, rating int, PRIMARY KEY (program, season, episode));")
     }
   }
 
@@ -69,12 +69,15 @@ class Simulation {
     props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
     val config = new ProducerConfig(props)
     val producer = new Producer[String, String](config)
-    var count = 1
+    var count = 0
     ratings foreach { l =>
-      producer.send(KeyedMessage[String, String](topic = topic, key = l, partKey = l, message = l))
+      val fields = l.split(",")
+      val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
+      println(tuple)
       count += 1
+      producer.send(KeyedMessage[String, String](topic = topic, key = l, partKey = count, message = l))
     }
-    println(s"$count published to kafka topic: $topic")
+    println(s"$count messages published to kafka topic: $topic")
     count
   }
 
@@ -85,7 +88,7 @@ class Simulation {
     val topics = Set(topic)
     val is: InputDStream[(String, String)] = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
     val ds: DStream[(String, Int, Int, Int)] = is map { rdd =>
-      val fields = rdd._2.split(",").map(_.trim)
+      val fields = rdd._2.split(",")
       val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
       tuple
     }
@@ -103,6 +106,7 @@ class Simulation {
     val data = ArrayBuffer[(String, Int)]()
     rows foreach { r =>
       val tuple = (r.getString(0), r.getInt(1))
+      println(s"cassandra: $tuple")
       data += tuple
     }
     data
