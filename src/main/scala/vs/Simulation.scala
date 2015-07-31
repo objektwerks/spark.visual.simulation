@@ -93,7 +93,7 @@ class Simulation {
     val producer = new Producer[String, String](config)
     val messages = ArrayBuffer[KeyedMessage[String, String]]()
     ratings foreach { l =>
-      messages += KeyedMessage[String, String](topic = topic, key = l, partKey = 1, message = l)
+      messages += KeyedMessage[String, String](topic = topic, key = l, partKey = 0, message = l)
     }
     producer.send(messages:_*)
     println(s"${messages.size} published to kafka topic: $topic")
