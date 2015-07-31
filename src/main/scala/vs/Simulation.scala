@@ -1,17 +1,14 @@
 package vs
 
-import java.io._
-import java.util.{Properties, UUID}
+import java.util.Properties
 
 import com.datastax.spark.connector.SomeColumns
 import com.datastax.spark.connector.cql.CassandraConnector
-import com.datastax.spark.connector.mapper.DefaultColumnMapper
 import kafka.admin.AdminUtils
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
-import kafka.serializer.{Decoder, Encoder, StringDecoder}
-import kafka.utils.{VerifiableProperties, ZKStringSerializer}
+import kafka.serializer.StringDecoder
+import kafka.utils.ZKStringSerializer
 import org.I0Itec.zkclient.ZkClient
-import org.apache.commons.lang3.SerializationUtils
 import org.apache.spark.sql.cassandra.CassandraSQLContext
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
 import org.apache.spark.streaming.kafka.KafkaUtils
@@ -21,41 +18,16 @@ import org.apache.spark.{SparkConf, SparkContext}
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
-case class Rating(uuid: String, program: String, episode: Int, rating: Int)
-
-object Rating {
-  implicit object Mapper extends DefaultColumnMapper[Rating](
-    Map("uuid" -> "uuid", "program" -> "program", "episode" -> "episode", "rating" -> "rating"))
-}
-
-class RatingEncoder extends Encoder[Rating] with Serializable {
-  def this(props: VerifiableProperties) { this() }
-
-  override def toBytes(rating: Rating): Array[Byte] = {
-    SerializationUtils.serialize(rating)
-  }
-}
-
-class RatingDecoder extends Decoder[Rating] with Serializable {
-  def this(props: VerifiableProperties) { this() }
-
-  override def fromBytes(bytes: Array[Byte]): Rating = {
-    SerializationUtils.deserialize(bytes)
-  }
-}
-
-case class Result(producedKafkaTopicMessages: ArrayBuffer[Rating],
-                  selectedCassandraRatings: ArrayBuffer[(String, Int)]) {
+case class Result(producedKafkaTopicMessageCount: Int, selectedCassandraRatings: ArrayBuffer[(String, Int)]) {
   override def toString: String = {
-    s"""produced kafka topic messages: $producedKafkaTopicMessages"
-        \nselected cassandra ratings: $selectedCassandraRatings"""
+    s"""Produced kafka topic message count: $producedKafkaTopicMessageCount \nselected cassandra ratings: ${selectedCassandraRatings.foreach(println)}"""
   }
 }
 
 class Simulation {
   val conf = new SparkConf().setMaster("local[2]").setAppName("sparky")
     .set("spark.cassandra.connection.host", "127.0.0.1")
-    .set("spark.executor.memory", "2048m")
+    .set("spark.executor.memory", "1024m")
   val context = new SparkContext(conf)
   val connector = CassandraConnector(conf)
   val ratings = Source.fromInputStream(getClass.getResourceAsStream("/ratings")).getLines.toSeq
@@ -88,25 +60,22 @@ class Simulation {
     connector.withSessionDo { session =>
       session.execute("DROP KEYSPACE IF EXISTS simulation;")
       session.execute("CREATE KEYSPACE simulation WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
-      session.execute("CREATE TABLE simulation.ratings(uuid text PRIMARY KEY, program text, episode int, rating int);")
+      session.execute("CREATE TABLE simulation.ratings(program text, season int, episode int, rating int PRIMARY KEY (program, season, episode);")
     }
   }
 
-  def produceKafkaTopicMessages(): ArrayBuffer[Rating] = {
+  def produceKafkaTopicMessages(): Int = {
     val props = new Properties
     props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
     val config = new ProducerConfig(props)
-    val producer = new Producer[String, Array[Byte]](config)
-    val messages = ArrayBuffer[Rating]()
-    val encoder = new RatingEncoder()
+    val producer = new Producer[String, String](config)
+    var count = 1
     ratings foreach { l =>
-      val fields = l.split(",").map(_.trim)
-      val rating = Rating(uuid = UUID.randomUUID().toString, program = fields(0), episode = fields(1).toInt, rating = fields(2).toInt)
-      val bytes = encoder.toBytes(rating)
-      producer.send(KeyedMessage[String, Array[Byte]](topic = topic, key = rating.uuid, partKey = rating.program, message = bytes))
-      messages += rating
+      producer.send(KeyedMessage[String, String](topic = topic, key = l, partKey = l, message = l))
+      count += 1
     }
-    messages
+    println(s"$count published to kafka topic: $topic")
+    count
   }
 
   def consumeKafkaTopicMessages(): Unit = {
@@ -114,10 +83,14 @@ class Simulation {
     val streamingContext = new StreamingContext(context, Milliseconds(1000))
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
     val topics = Set(topic)
-    val is: InputDStream[(String, Rating)] = KafkaUtils.createDirectStream[String, Rating, StringDecoder, RatingDecoder](streamingContext, kafkaParams, topics)
-    val ds: DStream[Rating] = is map(_._2)
+    val is: InputDStream[(String, String)] = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
+    val ds: DStream[(String, Int, Int, Int)] = is map { rdd =>
+      val fields = rdd._2.split(",").map(_.trim)
+      val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
+      tuple
+    }
     ds.repartitionByCassandraReplica(keyspaceName = "simulation", tableName = "ratings", partitionsPerHost = 2)
-    ds.saveToCassandra("simulation", "ratings", SomeColumns("uuid", "program", "episode", "rating"))
+    ds.saveToCassandra("simulation", "ratings", SomeColumns("program", "season", "episode", "rating"))
     streamingContext.start()
     streamingContext.awaitTerminationOrTimeout(3000)
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
