@@ -98,7 +98,7 @@ class Simulation {
 
   def consumeKafkaTopicMessages(): Unit = {
     import com.datastax.spark.connector.streaming._
-    val streamingContext = new StreamingContext(context, Milliseconds(500))
+    val streamingContext = new StreamingContext(context, Milliseconds(3000))
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
     val topics = Set(topic)
     // Not consuming Kafka topic messages. Data received is a partial of the first topic message. Just using simple strings herein.
@@ -111,7 +111,7 @@ class Simulation {
     ds.repartitionByCassandraReplica(keyspaceName = "simulation", tableName = "ratings", partitionsPerHost = 2)
     ds.saveToCassandra("simulation", "ratings", SomeColumns("program", "season", "episode", "rating"))
     streamingContext.start()
-    streamingContext.awaitTerminationOrTimeout(3000)
+    streamingContext.awaitTerminationOrTimeout(9000)
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
   }
 
