@@ -43,7 +43,7 @@ class RatingDecoder(props: VerifiableProperties) extends Decoder[Rating] {
   }
 }
 
-case class Result(selectedCassandraRatings: ArrayBuffer[(String, Int)]) {
+case class Result(selectedCassandraRatings: ArrayBuffer[(String, Long)]) {
   override def toString: String = {
     s"Selected cassandra ratings: ${selectedCassandraRatings.foreach(println)}"
   }
@@ -114,7 +114,7 @@ class Simulation {
     ds.repartitionByCassandraReplica(keyspaceName = "simulation", tableName = "ratings", partitionsPerHost = 2)
     ds.saveToCassandra("simulation", "ratings", SomeColumns("program", "season", "episode", "rating"))
     streamingContext.start()
-    streamingContext.awaitTerminationOrTimeout(9000)
+    streamingContext.awaitTerminationOrTimeout(3000)
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
   }
 
@@ -136,13 +136,13 @@ class Simulation {
   }
 */
 
-  def selectFromCassandra(): ArrayBuffer[(String, Int)] = {
+  def selectFromCassandra(): ArrayBuffer[(String, Long)] = {
     val sqlContext = new CassandraSQLContext(context)
     val df = sqlContext.sql("select program, rating from simulation.ratings")
     val rows = df.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()
-    val data = ArrayBuffer[(String, Int)]()
+    val data = ArrayBuffer[(String, Long)]()
     rows foreach { r =>
-      val tuple = (r.getString(0), r.getInt(1))
+      val tuple = (r.getString(0), r.getLong(1))
       println(s"cassandra: $tuple")
       data += tuple
     }
