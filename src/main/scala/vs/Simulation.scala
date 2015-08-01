@@ -28,13 +28,13 @@ object Rating {
     Map("program" -> "program", "season" -> "season", "episode" -> "episode", "rating" -> "rating"))
 }
 
-case class RatingEncoder(props: VerifiableProperties) extends Encoder[Rating] {
+case class RatingEncoder(props: VerifiableProperties = new VerifiableProperties()) extends Encoder[Rating] {
   override def toBytes(rating: Rating): Array[Byte] = {
     rating.pickle.value
   }
 }
 
-case class RatingDecoder(props: VerifiableProperties) extends Decoder[Rating] {
+case class RatingDecoder(props: VerifiableProperties = new VerifiableProperties()) extends Decoder[Rating] {
   override def fromBytes(bytes: Array[Byte]): Rating = {
     bytes.unpickle[Rating]
   }
