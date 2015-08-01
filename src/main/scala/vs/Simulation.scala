@@ -41,8 +41,8 @@ class RatingDecoder(props: VerifiableProperties) extends Decoder[Rating] {
 }
 
 case class Result(producedKafkaMessages: Int,
-                  selectedLineChartDataFromCassandra: Map[String, ArrayBuffer[(String, Long, Long, Long)]],
-                  selectedPieChartDataFromCassandra: ArrayBuffer[(String, Long)]) {
+                  selectedLineChartDataFromCassandra: Map[String, Seq[(String, Long, Long, Long)]],
+                  selectedPieChartDataFromCassandra: Seq[(String, Long)]) {
 }
 
 class Simulation {
@@ -114,7 +114,7 @@ class Simulation {
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
   }
 
-  def selectLineChartDataFromCassandra(): Map[String, ArrayBuffer[(String, Long, Long, Long)]] = {
+  def selectLineChartDataFromCassandra(): Map[String, Seq[(String, Long, Long, Long)]] = {
     val sqlContext = new CassandraSQLContext(context)
     val rows = sqlContext.sql("select show, season, episode, rating from simulation.ratings")
     val data = ArrayBuffer[(String, Long, Long, Long)]()
@@ -125,7 +125,7 @@ class Simulation {
     data.groupBy { t => t._1 }
   }
 
-  def selectPieChartDataFromCassandra(): ArrayBuffer[(String, Long)] = {
+  def selectPieChartDataFromCassandra(): Seq[(String, Long)] = {
     val sqlContext = new CassandraSQLContext(context)
     val df = sqlContext.sql("select program, rating from simulation.ratings")
     val rows = df.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()

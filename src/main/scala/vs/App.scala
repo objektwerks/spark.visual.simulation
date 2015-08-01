@@ -1,6 +1,5 @@
 package vs
 
-import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 import scalafx.Includes._
 import scalafx.application.JFXApp
@@ -47,7 +46,7 @@ object App extends JFXApp {
       playSimulationButton.disable = true
       sourceLabel.text = s"Source: ${result.producedKafkaMessages} messages produced for topic ratings."
 
-      val programs: Map[String, ArrayBuffer[(String, Long, Long, Long)]] = result.selectedLineChartDataFromCassandra
+      val programs: Map[String, Seq[(String, Long, Long, Long)]] = result.selectedLineChartDataFromCassandra
       programs foreach println
 
       sinkChart.data = result.selectedPieChartDataFromCassandra map { t => PieChart.Data(t._1, t._2) }
