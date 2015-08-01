@@ -23,7 +23,7 @@ object App extends JFXApp {
     text = "Flow"
   }
 
-  val flowChart = new LineChart(NumberAxis("Episodes", 0, 100, 10), NumberAxis("Ratings", 0, 100, 10))
+  val flowChart = new LineChart(NumberAxis("Episodes", 1, 10, 1), NumberAxis("Ratings", 1, 10, 1))
 
   val sinkLabel = new Label {
     text = "Sink"
@@ -51,8 +51,14 @@ object App extends JFXApp {
 
       val programs: Map[String, Seq[(String, Long, Long)]] = result.selectedLineChartDataFromCassandra
       val model = new ObservableBuffer[jfxsc.XYChart.Series[Number, Number]]()
-
-      flowChart.data() = model
+      programs foreach { p =>
+        val series = new XYChart.Series[Number, Number] { name = p._1 }
+        p._2 foreach { t =>
+          series.data() += XYChart.Data[Number, Number]( t._2, t._3)
+        }
+        model += series
+      }
+      flowChart.data = model
 
       sinkChart.data = result.selectedPieChartDataFromCassandra map { t => PieChart.Data(t._1, t._2) }
     } finally {
