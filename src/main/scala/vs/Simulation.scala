@@ -16,7 +16,6 @@ import org.apache.spark.streaming.kafka.KafkaUtils
 import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 import scala.pickling.Defaults._
@@ -25,8 +24,10 @@ import scala.pickling.binary._
 case class Rating(program: String, season: Int, episode: Int, rating: Int)
 
 object Rating {
+
   implicit object Mapper extends DefaultColumnMapper[Rating](
     Map("program" -> "program", "season" -> "season", "episode" -> "episode", "rating" -> "rating"))
+
 }
 
 case class RatingEncoder(props: VerifiableProperties = new VerifiableProperties()) extends Encoder[Rating] {
@@ -42,7 +43,7 @@ case class RatingDecoder(props: VerifiableProperties = new VerifiableProperties(
 }
 
 case class Result(producedKafkaMessages: Int,
-                  selectedLineChartDataFromCassandra: mutable.HashMap[String, ArrayBuffer[(Long, Long)]],
+                  selectedLineChartDataFromCassandra: Map[String, ArrayBuffer[(Long, Long)]],
                   selectedPieChartDataFromCassandra: Seq[(String, Long)]) {
 }
 
@@ -93,7 +94,7 @@ class Simulation {
     ratings foreach { l =>
       messages += KeyedMessage[String, String](topic = topic, key = l, partKey = 0, message = l)
     }
-    producer.send(messages:_*)
+    producer.send(messages: _*)
     messages.size
   }
 
@@ -115,26 +116,19 @@ class Simulation {
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
   }
 
-  def selectLineChartDataFromCassandra(): mutable.HashMap[String, ArrayBuffer[(Long, Long)]] = {
+  def selectLineChartDataFromCassandra(): Map[String, ArrayBuffer[(Long, Long)]] = {
     val sqlContext = new CassandraSQLContext(context)
-    val rows = sqlContext.sql("select program, episode, rating from simulation.ratings")
-    val data = mutable.HashMap[String, ArrayBuffer[(Long, Long)]]()
+    val df = sqlContext.sql("select program, episode, rating from simulation.ratings")
+    val rows = df.orderBy("program", "episode", "rating")
+    val data = ArrayBuffer[(String, Long, Long)]()
     rows foreach { r =>
-      val t = (r.getString(0), r.getLong(1), r.getLong(2))
-      if (data.contains(t._1)) {
-        val add = (t._2, t._3)
-        data.get(t._1).get += add
-        println(s"$t._1 EXISTS, adding $t._2 and $t._3")
-      } else {
-        val put = (t._2, t._3)
-        val buffer = ArrayBuffer[(Long, Long)]()
-        buffer += put
-        data.put(t._1, buffer)
-        println(s"$t._1 DOES NOT EXIST, adding $t._2 and $t._3")
-      }
+      val tuple = (r.getString(0).trim(), r.getLong(1), r.getLong(2))
+      data += tuple
     }
     println(s"data size: ${data.size}")
-    data
+    val map = data groupBy { t => t._1 } mapValues { _.map { t => (t._2, t._3 ) } }
+    println(s"map size: ${map.size}")
+    map
   }
 
   def selectPieChartDataFromCassandra(): Seq[(String, Long)] = {
