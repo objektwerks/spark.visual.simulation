@@ -3,6 +3,7 @@ package vs
 import scala.concurrent.ExecutionContext
 import scalafx.Includes._
 import scalafx.application.JFXApp
+import scalafx.collections.ObservableBuffer
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
 import scalafx.scene.chart._
@@ -47,13 +48,14 @@ object App extends JFXApp {
       sourceLabel.text = s"Source: ${result.producedKafkaMessages} messages produced for topic ratings."
 
       val programs: Map[String, Seq[(String, Long, Long)]] = result.selectedLineChartDataFromCassandra
-      programs foreach println
 
       sinkChart.data = result.selectedPieChartDataFromCassandra map { t => PieChart.Data(t._1, t._2) }
     } finally {
       playSimulationButton.disable = false
     }
   }
+
+  def toChartData = (xy: (Double, Double)) => XYChart.Data[Number, Number](xy._1, xy._2)
 
   val toolbar = new ToolBar {
     content = List(playSimulationButton)
