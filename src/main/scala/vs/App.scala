@@ -23,7 +23,8 @@ object App extends JFXApp {
     text = "Flow"
   }
 
-  val flowChart = new LineChart(NumberAxis("Episodes", 1, 10, 1), NumberAxis("Ratings", 1, 10, 1))
+  val flowChart = new LineChart(NumberAxis(axisLabel = "Episodes", lowerBound = 1, upperBound = 10, tickUnit =1),
+                                NumberAxis(axisLabel = "Ratings", lowerBound = 1, upperBound = 10, tickUnit = 1))
 
   val sinkLabel = new Label {
     text = "Sink"
