@@ -2,7 +2,6 @@ package vs
 
 import javafx.scene.{chart => jfxsc}
 
-import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 import scalafx.Includes._
 import scalafx.application.JFXApp
@@ -51,7 +50,7 @@ object App extends JFXApp {
       playSimulationButton.disable = true
       sourceLabel.text = s"Source: ${result.producedKafkaMessages} messages produced for topic ratings."
 
-      val programs: Map[String, ArrayBuffer[(Long, Long)]] = result.selectedLineChartDataFromCassandra
+      val programs: Map[String, Seq[(Long, Long)]] = result.selectedLineChartDataFromCassandra
       val model = new ObservableBuffer[jfxsc.XYChart.Series[Number, Number]]()
       programs foreach { p =>
         val series = new XYChart.Series[Number, Number] { name = p._1 }

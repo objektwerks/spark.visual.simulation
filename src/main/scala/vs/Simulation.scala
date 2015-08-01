@@ -43,7 +43,7 @@ case class RatingDecoder(props: VerifiableProperties = new VerifiableProperties(
 }
 
 case class Result(producedKafkaMessages: Int,
-                  selectedLineChartDataFromCassandra: Map[String, ArrayBuffer[(Long, Long)]],
+                  selectedLineChartDataFromCassandra: Map[String, Seq[(Long, Long)]],
                   selectedPieChartDataFromCassandra: Seq[(String, Long)]) {
 }
 
@@ -116,26 +116,23 @@ class Simulation {
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
   }
 
-  def selectLineChartDataFromCassandra(): Map[String, ArrayBuffer[(Long, Long)]] = {
+  def selectLineChartDataFromCassandra(): Map[String, Seq[(Long, Long)]] = {
     val sqlContext = new CassandraSQLContext(context)
     val df = sqlContext.sql("select program, episode, rating from simulation.ratings")
-    val rows = df.orderBy("program", "episode", "rating")
-    val data = ArrayBuffer[(String, Long, Long)]()
+    val rows = df.orderBy("program", "episode", "rating").collect()
+    var data = new ArrayBuffer[(String, Long, Long)](rows.length)
     rows foreach { r =>
-      val tuple = (r.getString(0).trim(), r.getLong(1), r.getLong(2))
+      val tuple = (r.getString(0), r.getLong(1), r.getLong(2))
       data += tuple
     }
-    println(s"data size: ${data.size}")
-    val map = data groupBy { t => t._1 } mapValues { _.map { t => (t._2, t._3 ) } }
-    println(s"map size: ${map.size}")
-    map
+    data groupBy { t => t._1 } mapValues { _.map { t => (t._2, t._3 ) } }
   }
 
   def selectPieChartDataFromCassandra(): Seq[(String, Long)] = {
     val sqlContext = new CassandraSQLContext(context)
     val df = sqlContext.sql("select program, rating from simulation.ratings")
     val rows = df.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()
-    val data = ArrayBuffer[(String, Long)]()
+    val data = new ArrayBuffer[(String, Long)](rows.length)
     rows foreach { r =>
       val tuple = (r.getString(0), r.getLong(1))
       data += tuple
