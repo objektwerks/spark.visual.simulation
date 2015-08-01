@@ -24,22 +24,15 @@ import scala.pickling.binary._
 case class Rating(program: String, season: Int, episode: Int, rating: Int)
 
 object Rating {
-
-  implicit object Mapper extends DefaultColumnMapper[Rating](
-    Map("program" -> "program", "season" -> "season", "episode" -> "episode", "rating" -> "rating"))
-
+  implicit object Mapper extends DefaultColumnMapper[Rating](Map("program" -> "program", "season" -> "season", "episode" -> "episode", "rating" -> "rating"))
 }
 
 case class RatingEncoder(props: VerifiableProperties = new VerifiableProperties()) extends Encoder[Rating] {
-  override def toBytes(rating: Rating): Array[Byte] = {
-    rating.pickle.value
-  }
+  override def toBytes(rating: Rating): Array[Byte] = { rating.pickle.value }
 }
 
 case class RatingDecoder(props: VerifiableProperties = new VerifiableProperties()) extends Decoder[Rating] {
-  override def fromBytes(bytes: Array[Byte]): Rating = {
-    bytes.unpickle[Rating]
-  }
+  override def fromBytes(bytes: Array[Byte]): Rating = { bytes.unpickle[Rating] }
 }
 
 case class Result(producedKafkaMessages: Int,
