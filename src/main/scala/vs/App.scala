@@ -1,11 +1,12 @@
 package vs
 
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 import scalafx.Includes._
 import scalafx.application.JFXApp
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
-import scalafx.scene.chart.{LineChart, NumberAxis, PieChart}
+import scalafx.scene.chart._
 import scalafx.scene.control._
 import scalafx.scene.layout.VBox
 
@@ -45,7 +46,10 @@ object App extends JFXApp {
       val result = simulation.play()
       playSimulationButton.disable = true
       sourceLabel.text = s"Source: ${result.producedKafkaMessages} messages produced for topic ratings."
-      // Todo
+
+      val programs: Map[String, ArrayBuffer[(String, Long, Long, Long)]] = result.selectedLineChartDataFromCassandra.groupBy(_._1)
+      programs foreach println
+
       sinkChart.data = result.selectedPieChartDataFromCassandra map { t => PieChart.Data(t._1, t._2) }
     } finally {
       playSimulationButton.disable = false
