@@ -7,7 +7,7 @@ import com.datastax.spark.connector.cql.CassandraConnector
 import com.datastax.spark.connector.mapper.DefaultColumnMapper
 import kafka.admin.AdminUtils
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
-import kafka.serializer.{Encoder, Decoder, StringDecoder}
+import kafka.serializer.{Decoder, Encoder, StringDecoder}
 import kafka.utils.{VerifiableProperties, ZKStringSerializer}
 import org.I0Itec.zkclient.ZkClient
 import org.apache.spark.sql.cassandra.CassandraSQLContext
@@ -16,6 +16,7 @@ import org.apache.spark.streaming.kafka.KafkaUtils
 import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 import scala.pickling.Defaults._
@@ -41,7 +42,7 @@ case class RatingDecoder(props: VerifiableProperties = new VerifiableProperties(
 }
 
 case class Result(producedKafkaMessages: Int,
-                  selectedLineChartDataFromCassandra: Map[String, Seq[(String, Long, Long)]],
+                  selectedLineChartDataFromCassandra: mutable.HashMap[String, ArrayBuffer[(Long, Long)]],
                   selectedPieChartDataFromCassandra: Seq[(String, Long)]) {
 }
 
@@ -79,7 +80,7 @@ class Simulation {
     connector.withSessionDo { session =>
       session.execute("DROP KEYSPACE IF EXISTS simulation;")
       session.execute("CREATE KEYSPACE simulation WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
-      session.execute("CREATE TABLE simulation.ratings(program text, season int, episode int, rating int, PRIMARY KEY (program, season, episode));")
+      session.execute("CREATE TABLE simulation.ratings(program text, season bigint, episode bigint, rating bigint, PRIMARY KEY (program, season, episode));")
     }
   }
 
@@ -114,15 +115,26 @@ class Simulation {
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
   }
 
-  def selectLineChartDataFromCassandra(): Map[String, Seq[(String, Long, Long)]] = {
+  def selectLineChartDataFromCassandra(): mutable.HashMap[String, ArrayBuffer[(Long, Long)]] = {
     val sqlContext = new CassandraSQLContext(context)
     val rows = sqlContext.sql("select program, episode, rating from simulation.ratings")
-    val data = ArrayBuffer[(String, Long, Long)]()
+    val data = mutable.HashMap[String, ArrayBuffer[(Long, Long)]]()
     rows foreach { r =>
-      val tuple = (r.getString(0), r.getLong(1), r.getLong(2))
-      data += tuple
+      val t = (r.getString(0), r.getLong(1), r.getLong(2))
+      if (data.contains(t._1)) {
+        val add = (t._2, t._3)
+        data.get(t._1).get += add
+        println(s"$t._1 EXISTS, adding $t._2 and $t._3")
+      } else {
+        val put = (t._2, t._3)
+        val buffer = ArrayBuffer[(Long, Long)]()
+        buffer += put
+        data.put(t._1, buffer)
+        println(s"$t._1 DOES NOT EXIST, adding $t._2 and $t._3")
+      }
     }
-    data.groupBy { t => t._1 }
+    println(s"data size: ${data.size}")
+    data
   }
 
   def selectPieChartDataFromCassandra(): Seq[(String, Long)] = {
