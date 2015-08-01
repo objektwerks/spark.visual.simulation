@@ -56,11 +56,11 @@ class Simulation {
     try {
       createKafkaTopic()
       createCassandraStore()
-      val count = produceKafkaTopicMessages()
+      val producedKafkaMessages = produceKafkaTopicMessages()
       consumeKafkaTopicMessages()
       val selectedLineChartDataFromCassandra = selectLineChartDataFromCassandra()
       val selectedPioChartDataFromCassandra = selectPieChartDataFromCassandra()
-      Result(count, selectedLineChartDataFromCassandra, selectedPioChartDataFromCassandra)
+      Result(producedKafkaMessages, selectedLineChartDataFromCassandra, selectedPioChartDataFromCassandra)
     } finally {
       context.stop
     }
