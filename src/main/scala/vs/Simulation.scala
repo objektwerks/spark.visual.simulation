@@ -35,7 +35,7 @@ case class RatingDecoder(props: VerifiableProperties = new VerifiableProperties(
   override def fromBytes(bytes: Array[Byte]): Rating = { bytes.unpickle[Rating] }
 }
 
-case class Result(producedKafkaMessages: Seq[(String, Int, Int, Int)],
+case class Result(producedKafkaMessages: Seq[String],
                   selectedLineChartDataFromCassandra: Map[String, Seq[(Int, Int)]],
                   selectedPieChartDataFromCassandra: Seq[(String, Int)]) {
 }
@@ -78,17 +78,19 @@ class Simulation {
     }
   }
 
-  def produceKafkaTopicMessages(): Seq[(String, Int, Int, Int)] = {
+  def produceKafkaTopicMessages(): Seq[String] = {
     val props = new Properties
     props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
     val config = new ProducerConfig(props)
     val producer = new Producer[String, String](config)
-    val _messages = ArrayBuffer[(String, Int, Int, Int)]()
+    val _messages = ArrayBuffer[String]()
     val messages = ArrayBuffer[KeyedMessage[String, String]]()
     ratings foreach { l =>
       val fields = l.split(",")
-      val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
-      _messages += tuple
+      _messages += fields(0)
+      _messages += fields(1)
+      _messages += fields(2)
+      _messages += fields(3)
       messages += KeyedMessage[String, String](topic = topic, key = l, partKey = 0, message = l)
     }
     producer.send(messages: _*)

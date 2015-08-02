@@ -19,7 +19,11 @@ object App extends JFXApp {
     text = "Source"
   }
 
-  val sourceTable = new TableView[(String, Int, Int, Int)]() {
+  val sourceTable = new TableView[String]() {
+    columns += new TableColumn[String, String]("Program")
+    columns += new TableColumn[String, String]("Season")
+    columns += new TableColumn[String, String]("Episode")
+    columns += new TableColumn[String, String]("Rating")
   }
 
   val flowLabel = new Label {
@@ -87,21 +91,21 @@ object App extends JFXApp {
   }
   
   def buildSource(result: Result): Unit = {
-    val messages: Seq[(String, Int, Int, Int)] = result.producedKafkaMessages
-    // Todo
+    val messages: Seq[String] = result.producedKafkaMessages
+    val model = new ObservableBuffer[String]()
+    messages foreach { m => model += m }
+    sourceTable.items = model
   }
   
   def buildFlow(result: Result): Unit = {
     val programs: Map[String, Seq[(Int, Int)]] = result.selectedLineChartDataFromCassandra
-    val flowModel = new ObservableBuffer[jfxsc.XYChart.Series[Number, Number]]()
+    val model = new ObservableBuffer[jfxsc.XYChart.Series[Number, Number]]()
     programs foreach { p =>
       val series = new XYChart.Series[Number, Number] { name = p._1 }
-      p._2 foreach { t =>
-        series.data() += XYChart.Data[Number, Number]( t._1, t._2)
-      }
-      flowModel += series
+      p._2 foreach { t => series.data() += XYChart.Data[Number, Number]( t._1, t._2) }
+      model += series
     }
-    flowChart.data = flowModel
+    flowChart.data = model
   }
 
   def buildSink(result: Result): Unit = {
