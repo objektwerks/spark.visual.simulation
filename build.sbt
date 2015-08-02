@@ -38,4 +38,4 @@ javaOptions += "-server -Xss1m -Xmx4g"
 
 fork in test := true
 
-run in Compile <<= Defaults.runTask(fullClasspath in Compile, mainClass in (Compile, run), runner in (Compile, run))
+run in Compile <<= Defaults.runTask(fullClasspath in (Compile, run), mainClass in (Compile, run), runner in (Compile, run))
