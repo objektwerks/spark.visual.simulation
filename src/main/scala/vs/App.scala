@@ -97,6 +97,7 @@ object App extends JFXApp {
   stage = new JFXApp.PrimaryStage {
     title.value = "Visual Spark"
     scene = new Scene {
+      stylesheets += getClass.getResource("/visual.slick.css").toExternalForm
       root = appPane
     }
   }
