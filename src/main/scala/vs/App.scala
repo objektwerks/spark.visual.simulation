@@ -4,7 +4,7 @@ import javafx.scene.{chart => jfxsc}
 
 import scala.concurrent.ExecutionContext
 import scalafx.Includes._
-import scalafx.application.JFXApp
+import scalafx.application.{Platform, JFXApp}
 import scalafx.collections.ObservableBuffer
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
@@ -19,11 +19,11 @@ object App extends JFXApp {
     text = "Source"
   }
 
-  val sourceTable = new TableView[String]() {
-    columns += new TableColumn[String, String]("Program")
-    columns += new TableColumn[String, String]("Season")
-    columns += new TableColumn[String, String]("Episode")
-    columns += new TableColumn[String, String]("Rating")
+  val sourceTable = new TableView[Rating]() {
+    columns += new TableColumn[Rating, String]("Program")
+    columns += new TableColumn[Rating, Int]("Season")
+    columns += new TableColumn[Rating, Int]("Episode")
+    columns += new TableColumn[Rating, Int]("Rating")
   }
 
   val flowLabel = new Label {
@@ -72,28 +72,27 @@ object App extends JFXApp {
   stage = new JFXApp.PrimaryStage {
     title.value = "Visual Spark"
     scene = new Scene {
-      stylesheets += getClass.getResource("/style.css").toExternalForm
+      stylesheets foreach println
       root = appPane
     }
   }
 
   def hanldePlaySimulationButton(): Unit = {
-    try {
-      playSimulationButton.disable = true
-      val simulation = new Simulation()
-      val result = simulation.play()
-      buildSource(result)
-      buildFlow(result)
-      buildSink(result)
-    } finally {
-      playSimulationButton.disable = false
+    playSimulationButton.disable = true
+    val simulation = new Simulation()
+    val result = simulation.play()
+    result map { r =>
+      Platform.runLater(buildSource(r))
+      Platform.runLater(buildFlow(r))
+      Platform.runLater(buildSink(r))
     }
+    playSimulationButton.disable = false
   }
   
   def buildSource(result: Result): Unit = {
-    val messages: Seq[String] = result.producedKafkaMessages
-    val model = new ObservableBuffer[String]()
-    messages foreach { m => model += m }
+    val messages: Seq[Rating] = result.producedKafkaMessages
+    val model = new ObservableBuffer[Rating]()
+    messages map(model += _)
     sourceTable.items = model
   }
   
@@ -109,6 +108,7 @@ object App extends JFXApp {
   }
 
   def buildSink(result: Result): Unit = {
-    sinkChart.data = result.selectedPieChartDataFromCassandra map { case (x, y) => PieChart.Data(x, y) }
+    val model: Seq[(String, Long)] = result.selectedPieChartDataFromCassandra
+    sinkChart.data = model map { case (x, y) => PieChart.Data(x, y) }
   }
 }

@@ -17,6 +17,7 @@ import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Source
 import scala.pickling.Defaults._
 import scala.pickling.binary._
@@ -35,30 +36,30 @@ case class RatingDecoder(props: VerifiableProperties = new VerifiableProperties(
   override def fromBytes(bytes: Array[Byte]): Rating = { bytes.unpickle[Rating] }
 }
 
-case class Result(producedKafkaMessages: Seq[String],
+case class Result(producedKafkaMessages: Seq[Rating],
                   selectedLineChartDataFromCassandra: Map[String, Seq[(Int, Int)]],
-                  selectedPieChartDataFromCassandra: Seq[(String, Int)]) {
+                  selectedPieChartDataFromCassandra: Seq[(String, Long)]) {
 }
 
 class Simulation {
+  implicit def ec = ExecutionContext.global
   val conf = new SparkConf().setMaster("local[2]").setAppName("sparky").set("spark.cassandra.connection.host", "127.0.0.1")
   val context = new SparkContext(conf)
   val connector = CassandraConnector(conf)
-  val ratings = Source.fromInputStream(getClass.getResourceAsStream("/ratings")).getLines.toSeq
   val topic = "ratings"
 
-  def play(): Result = {
-    try {
-      createKafkaTopic()
-      createCassandraStore()
-      val producedKafkaMessages = produceKafkaTopicMessages()
-      consumeKafkaTopicMessages()
-      val selectedLineChartDataFromCassandra = selectLineChartDataFromCassandra()
-      val selectedPioChartDataFromCassandra = selectPieChartDataFromCassandra()
-      Result(producedKafkaMessages, selectedLineChartDataFromCassandra, selectedPioChartDataFromCassandra)
-    } finally {
-      context.stop
-    }
+  def play(): Future[Result] = {
+      for {
+        _ <- Future { createKafkaTopic() }
+        _ <- Future { createCassandraStore() }
+        messages <- Future { produceKafkaTopicMessages() }
+        _ <- Future { consumeKafkaTopicMessages() }
+        lineChartData <- Future { selectLineChartDataFromCassandra() }
+        pieChartData <- Future { selectPieChartDataFromCassandra() }
+      } yield {
+        context.stop()
+        Result(messages, lineChartData, pieChartData)
+      }
   }
 
   def createKafkaTopic(): Unit = {
@@ -78,19 +79,17 @@ class Simulation {
     }
   }
 
-  def produceKafkaTopicMessages(): Seq[String] = {
+  def produceKafkaTopicMessages(): Seq[Rating] = {
     val props = new Properties
     props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
     val config = new ProducerConfig(props)
     val producer = new Producer[String, String](config)
-    val _messages = ArrayBuffer[String]()
+    val _messages = ArrayBuffer[Rating]()
     val messages = ArrayBuffer[KeyedMessage[String, String]]()
+    val ratings = Source.fromInputStream(getClass.getResourceAsStream("/ratings")).getLines.toSeq
     ratings foreach { l =>
       val fields = l.split(",")
-      _messages += fields(0)
-      _messages += fields(1)
-      _messages += fields(2)
-      _messages += fields(3)
+      _messages += Rating(fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
       messages += KeyedMessage[String, String](topic = topic, key = l, partKey = 0, message = l)
     }
     producer.send(messages: _*)
@@ -127,13 +126,13 @@ class Simulation {
     data groupBy { t => t._1 } mapValues { _.map { t => (t._2, t._3 ) } }
   }
 
-  def selectPieChartDataFromCassandra(): Seq[(String, Int)] = {
+  def selectPieChartDataFromCassandra(): Seq[(String, Long)] = {
     val sqlContext = new CassandraSQLContext(context)
     val df = sqlContext.sql("select program, rating from simulation.ratings")
     val rows = df.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()
-    val data = new ArrayBuffer[(String, Int)](rows.length)
+    val data = new ArrayBuffer[(String, Long)](rows.length)
     rows foreach { r =>
-      val tuple = (r.getAs[String](0), r.getAs[Int](1))
+      val tuple = (r.getAs[String](0), r.getAs[Long](1))
       data += tuple
     }
     data
