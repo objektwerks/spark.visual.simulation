@@ -35,7 +35,7 @@ case class RatingDecoder(props: VerifiableProperties = new VerifiableProperties(
   override def fromBytes(bytes: Array[Byte]): Rating = { bytes.unpickle[Rating] }
 }
 
-case class Result(producedKafkaMessages: ArrayBuffer[(String, Int, Int, Int)],
+case class Result(producedKafkaMessages: Seq[(String, Int, Int, Int)],
                   selectedLineChartDataFromCassandra: Map[String, Seq[(Long, Long)]],
                   selectedPieChartDataFromCassandra: Seq[(String, Double)]) {
 }
@@ -78,7 +78,7 @@ class Simulation {
     }
   }
 
-  def produceKafkaTopicMessages(): ArrayBuffer[(String, Int, Int, Int)] = {
+  def produceKafkaTopicMessages(): Seq[(String, Int, Int, Int)] = {
     val props = new Properties
     props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
     val config = new ProducerConfig(props)

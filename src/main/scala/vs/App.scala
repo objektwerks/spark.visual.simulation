@@ -83,7 +83,7 @@ object App extends JFXApp {
   }
   
   def buildSource(result: Result): Unit = {
-    val messages = result.producedKafkaMessages
+    val messages: Seq[(String, Int, Int, Int)] = result.producedKafkaMessages
     sourceLabel.text = s"Source: ${messages.size} messages produced for topic ratings."
   }
   
