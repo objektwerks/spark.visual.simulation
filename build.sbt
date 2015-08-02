@@ -37,3 +37,5 @@ scalacOptions ++= Seq(
 javaOptions += "-server -Xss1m -Xmx4g"
 
 fork in test := true
+
+run in Compile <<= Defaults.runTask(fullClasspath in Compile, mainClass in (Compile, run), runner in (Compile, run))
