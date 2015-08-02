@@ -5,12 +5,24 @@ import javafx.scene.{chart => jfxsc}
 import scala.concurrent.ExecutionContext
 import scalafx.Includes._
 import scalafx.application.JFXApp
+import scalafx.beans.property.StringProperty
 import scalafx.collections.ObservableBuffer
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
 import scalafx.scene.chart._
+import scalafx.scene.control.TableColumn._
 import scalafx.scene.control._
 import scalafx.scene.layout.VBox
+
+class RatingView(program_ : String, season_ : String, episode_ : String, rating_ : String) {
+  def this(rating: Rating) {
+    this(rating.program, rating.season.toString, rating.episode.toString, rating.rating.toString)
+  }
+  val program = new StringProperty(this, "program", program_)
+  val season = new StringProperty(this, "season", season_)
+  val episode = new StringProperty(this, "episode", episode_)
+  val rating = new StringProperty(this, "rating", rating_)
+}
 
 object App extends JFXApp {
   implicit def ec = ExecutionContext.global
@@ -19,11 +31,24 @@ object App extends JFXApp {
     text = "Source"
   }
 
-  val sourceTable = new TableView[Rating]() {
-    columns += new TableColumn[Rating, String]("Program")
-    columns += new TableColumn[Rating, Int]("Season")
-    columns += new TableColumn[Rating, Int]("Episode")
-    columns += new TableColumn[Rating, Int]("Rating")
+  val sourceTable = new TableView[RatingView]() {
+    columns ++= List(
+      new TableColumn[RatingView, String] {
+      text = "Program"
+      cellValueFactory = { _.value.program }
+    },
+      new TableColumn[RatingView, String] {
+      text = "Season"
+      cellValueFactory = { _.value.season }
+    },
+      new TableColumn[RatingView, String] {
+      text = "Episode"
+      cellValueFactory = { _.value.episode }
+    },
+      new TableColumn[RatingView, String] {
+      text = "Rating"
+      cellValueFactory = { _.value.rating }
+    })
   }
 
   val flowLabel = new Label {
@@ -88,8 +113,8 @@ object App extends JFXApp {
 
   def buildSource(result: Result): Unit = {
     val messages: Seq[Rating] = result.producedKafkaMessages
-    val model = new ObservableBuffer[Rating]()
-    messages foreach { r => model += r }
+    val model = new ObservableBuffer[RatingView]()
+    messages foreach { r => model += new RatingView(r) }
     sourceTable.items = model
   }
   
