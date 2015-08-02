@@ -34,6 +34,7 @@ object App extends JFXApp {
   }
 
   val sinkChart = new PieChart {
+    title = "Program Ratings"
     clockwise = false
   }
 
