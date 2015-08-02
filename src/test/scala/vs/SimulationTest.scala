@@ -10,11 +10,9 @@ class SimulationTest extends FunSuite {
   test("simulation") {
     val simulation = new Simulation()
     val result = simulation.play()
-    result map { r =>
-      assert(r.producedKafkaMessages.nonEmpty)
-      assert(r.selectedLineChartDataFromCassandra.nonEmpty)
-      assert(r.selectedPieChartDataFromCassandra.nonEmpty)
-      println(result.toString)
-    }
+    assert(result.producedKafkaMessages.nonEmpty)
+    assert(result.selectedLineChartDataFromCassandra.nonEmpty)
+    assert(result.selectedPieChartDataFromCassandra.nonEmpty)
+    println(result.toString)
   }
 }

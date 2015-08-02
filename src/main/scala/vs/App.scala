@@ -4,7 +4,7 @@ import javafx.scene.{chart => jfxsc}
 
 import scala.concurrent.ExecutionContext
 import scalafx.Includes._
-import scalafx.application.{Platform, JFXApp}
+import scalafx.application.JFXApp
 import scalafx.collections.ObservableBuffer
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
@@ -72,7 +72,6 @@ object App extends JFXApp {
   stage = new JFXApp.PrimaryStage {
     title.value = "Visual Spark"
     scene = new Scene {
-      stylesheets foreach println
       root = appPane
     }
   }
@@ -81,18 +80,16 @@ object App extends JFXApp {
     playSimulationButton.disable = true
     val simulation = new Simulation()
     val result = simulation.play()
-    result map { r =>
-      Platform.runLater(buildSource(r))
-      Platform.runLater(buildFlow(r))
-      Platform.runLater(buildSink(r))
-    }
+    buildSource(result)
+    buildFlow(result)
+    buildSink(result)
     playSimulationButton.disable = false
   }
-  
+
   def buildSource(result: Result): Unit = {
     val messages: Seq[Rating] = result.producedKafkaMessages
     val model = new ObservableBuffer[Rating]()
-    messages map(model += _)
+    messages foreach { r => model += r }
     sourceTable.items = model
   }
   

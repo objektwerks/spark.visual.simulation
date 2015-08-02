@@ -17,7 +17,6 @@ import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Source
 import scala.pickling.Defaults._
 import scala.pickling.binary._
@@ -42,24 +41,20 @@ case class Result(producedKafkaMessages: Seq[Rating],
 }
 
 class Simulation {
-  implicit def ec = ExecutionContext.global
   val conf = new SparkConf().setMaster("local[2]").setAppName("sparky").set("spark.cassandra.connection.host", "127.0.0.1")
   val context = new SparkContext(conf)
   val connector = CassandraConnector(conf)
   val topic = "ratings"
 
-  def play(): Future[Result] = {
-      for {
-        _ <- Future { createKafkaTopic() }
-        _ <- Future { createCassandraStore() }
-        messages <- Future { produceKafkaTopicMessages() }
-        _ <- Future { consumeKafkaTopicMessages() }
-        lineChartData <- Future { selectLineChartDataFromCassandra() }
-        pieChartData <- Future { selectPieChartDataFromCassandra() }
-      } yield {
-        context.stop()
-        Result(messages, lineChartData, pieChartData)
-      }
+  def play(): Result = {
+    createKafkaTopic()
+    createCassandraStore()
+    val messages = produceKafkaTopicMessages()
+    consumeKafkaTopicMessages()
+    val lineChartData = selectLineChartDataFromCassandra()
+    val pieChartData = selectPieChartDataFromCassandra()
+    context.stop()
+    Result(messages, lineChartData, pieChartData)
   }
 
   def createKafkaTopic(): Unit = {
