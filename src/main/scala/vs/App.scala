@@ -72,7 +72,7 @@ object App extends JFXApp {
   stage = new JFXApp.PrimaryStage {
     title.value = "Visual Spark"
     scene = new Scene {
-      stylesheets += this.getClass.getResource("/look.and.feel.css").toExternalForm
+      stylesheets += getClass.getResource("/style.css").toExternalForm
       root = appPane
     }
   }
