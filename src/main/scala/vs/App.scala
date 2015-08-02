@@ -102,6 +102,6 @@ object App extends JFXApp {
   }
 
   def buildSink(result: Result): Unit = {
-    sinkChart.data = ObservableBuffer(result.selectedPieChartDataFromCassandra map { case (x, y) => PieChart.Data(x, y) })
+    sinkChart.data = result.selectedPieChartDataFromCassandra map { case (x, y) => PieChart.Data(x, y) }
   }
 }
