@@ -35,7 +35,7 @@ case class RatingDecoder(props: VerifiableProperties = new VerifiableProperties(
   override def fromBytes(bytes: Array[Byte]): Rating = { bytes.unpickle[Rating] }
 }
 
-case class Result(producedKafkaMessages: Int,
+case class Result(producedKafkaMessages: ArrayBuffer[(String, Int, Int, Int)],
                   selectedLineChartDataFromCassandra: Map[String, Seq[(Long, Long)]],
                   selectedPieChartDataFromCassandra: Seq[(String, Long)]) {
 }
@@ -78,17 +78,21 @@ class Simulation {
     }
   }
 
-  def produceKafkaTopicMessages(): Int = {
+  def produceKafkaTopicMessages(): ArrayBuffer[(String, Int, Int, Int)] = {
     val props = new Properties
     props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
     val config = new ProducerConfig(props)
     val producer = new Producer[String, String](config)
+    val _messages = ArrayBuffer[(String, Int, Int, Int)]()
     val messages = ArrayBuffer[KeyedMessage[String, String]]()
     ratings foreach { l =>
+      val fields = l.split(",")
+      val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
+      _messages += tuple
       messages += KeyedMessage[String, String](topic = topic, key = l, partKey = 0, message = l)
     }
     producer.send(messages: _*)
-    messages.size
+    _messages
   }
 
   def consumeKafkaTopicMessages(): Unit = {
@@ -98,7 +102,7 @@ class Simulation {
     val topics = Set(topic)
     val is: InputDStream[(String, String)] = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
     val ds: DStream[(String, Int, Int, Int)] = is map { rdd =>
-      val fields: Array[String] = rdd._2.split(",")
+      val fields = rdd._2.split(",")
       val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
       tuple
     }

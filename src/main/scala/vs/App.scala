@@ -48,7 +48,8 @@ object App extends JFXApp {
       val simulation = new Simulation()
       val result = simulation.play()
       playSimulationButton.disable = true
-      sourceLabel.text = s"Source: ${result.producedKafkaMessages} messages produced for topic ratings."
+      val messages = result.producedKafkaMessages
+      sourceLabel.text = s"Source: ${messages.size} messages produced for topic ratings."
 
       val programs: Map[String, Seq[(Long, Long)]] = result.selectedLineChartDataFromCassandra
       val model = new ObservableBuffer[jfxsc.XYChart.Series[Number, Number]]()
