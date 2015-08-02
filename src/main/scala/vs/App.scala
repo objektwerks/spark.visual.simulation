@@ -27,7 +27,9 @@ object App extends JFXApp {
   }
 
   val flowChart = new LineChart(NumberAxis(axisLabel = "Episodes", lowerBound = 1, upperBound = 10, tickUnit =1),
-                                NumberAxis(axisLabel = "Ratings", lowerBound = 1, upperBound = 10, tickUnit = 1))
+                                NumberAxis(axisLabel = "Ratings", lowerBound = 1, upperBound = 10, tickUnit = 1)) {
+    title = "Episode Ratings"
+  }
 
   val sinkLabel = new Label {
     text = "Sink"
@@ -66,6 +68,7 @@ object App extends JFXApp {
   stage = new JFXApp.PrimaryStage {
     title.value = "Visual Spark"
     scene = new Scene {
+      stylesheets += this.getClass.getResource("/look.and.feel.css").toExternalForm
       root = appPane
     }
   }
