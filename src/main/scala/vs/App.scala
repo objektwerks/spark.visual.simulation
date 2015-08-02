@@ -75,9 +75,9 @@ object App extends JFXApp {
 
   def hanldePlaySimulationButton(): Unit = {
     try {
+      playSimulationButton.disable = true
       val simulation = new Simulation()
       val result = simulation.play()
-      playSimulationButton.disable = true
       buildSource(result)
       buildFlow(result)
       buildSink(result)
@@ -88,7 +88,7 @@ object App extends JFXApp {
   
   def buildSource(result: Result): Unit = {
     val messages: Seq[(String, Int, Int, Int)] = result.producedKafkaMessages
-    sourceLabel.text = s"Source: ${messages.size} messages produced for topic ratings."
+    // Todo
   }
   
   def buildFlow(result: Result): Unit = {
