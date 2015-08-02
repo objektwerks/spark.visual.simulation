@@ -101,10 +101,6 @@ object App extends JFXApp {
   }
 
   def buildSink(result: Result): Unit = {
-    val sinkModel = new ObservableBuffer[jfxsc.PieChart.Data]()
-    result.selectedPieChartDataFromCassandra map { t =>
-      sinkModel += PieChart.Data( t._1, t._2 )
-    }
-    sinkChart.data = sinkModel
+    sinkChart.data = ObservableBuffer(result.selectedPieChartDataFromCassandra map { case (x, y) => PieChart.Data(x, y) })
   }
 }
