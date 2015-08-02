@@ -37,7 +37,7 @@ case class RatingDecoder(props: VerifiableProperties = new VerifiableProperties(
 
 case class Result(producedKafkaMessages: ArrayBuffer[(String, Int, Int, Int)],
                   selectedLineChartDataFromCassandra: Map[String, Seq[(Long, Long)]],
-                  selectedPieChartDataFromCassandra: Seq[(String, Long)]) {
+                  selectedPieChartDataFromCassandra: Seq[(String, Double)]) {
 }
 
 class Simulation {
@@ -125,13 +125,13 @@ class Simulation {
     data groupBy { t => t._1 } mapValues { _.map { t => (t._2, t._3 ) } }
   }
 
-  def selectPieChartDataFromCassandra(): Seq[(String, Long)] = {
+  def selectPieChartDataFromCassandra(): Seq[(String, Double)] = {
     val sqlContext = new CassandraSQLContext(context)
     val df = sqlContext.sql("select program, rating from simulation.ratings")
     val rows = df.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()
-    val data = new ArrayBuffer[(String, Long)](rows.length)
+    val data = new ArrayBuffer[(String, Double)](rows.length)
     rows foreach { r =>
-      val tuple = (r.getString(0), r.getLong(1))
+      val tuple = (r.getString(0), r.getLong(1).toDouble)
       data += tuple
     }
     data

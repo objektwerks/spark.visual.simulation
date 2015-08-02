@@ -19,6 +19,9 @@ object App extends JFXApp {
     text = "Source"
   }
 
+  val sourceTable = new TableView[(String, Int, Int, Int)]() {
+  }
+
   val flowLabel = new Label {
     text = "Flow"
   }
@@ -35,7 +38,11 @@ object App extends JFXApp {
   }
 
   val simulationPane = new VBox {
-    children = List(sourceLabel, flowLabel, flowChart, sinkLabel, sinkChart)
+    maxWidth = 800
+    maxHeight = 800
+    spacing = 6
+    padding = Insets(6)
+    children = List(sourceLabel, sourceTable, flowLabel, flowChart, sinkLabel, sinkChart)
   }
 
   val playSimulationButton = new Button {
@@ -43,40 +50,13 @@ object App extends JFXApp {
     onAction = handle { hanldePlaySimulationButton() }
   }
 
-  def hanldePlaySimulationButton(): Unit = {
-    try {
-      val simulation = new Simulation()
-      val result = simulation.play()
-      playSimulationButton.disable = true
-      val messages = result.producedKafkaMessages
-      sourceLabel.text = s"Source: ${messages.size} messages produced for topic ratings."
-
-      val programs: Map[String, Seq[(Long, Long)]] = result.selectedLineChartDataFromCassandra
-      val model = new ObservableBuffer[jfxsc.XYChart.Series[Number, Number]]()
-      programs foreach { p =>
-        val series = new XYChart.Series[Number, Number] { name = p._1 }
-        p._2 foreach { t =>
-          series.data() += XYChart.Data[Number, Number]( t._1, t._2)
-        }
-        model += series
-      }
-      flowChart.data = model
-
-      sinkChart.data = result.selectedPieChartDataFromCassandra map { t => PieChart.Data(t._1, t._2) }
-    } finally {
-      playSimulationButton.disable = false
-    }
-  }
-
-  def toChartData = (xy: (Double, Double)) => XYChart.Data[Number, Number](xy._1, xy._2)
-
   val toolbar = new ToolBar {
     content = List(playSimulationButton)
   }
 
   val appPane = new VBox {
     maxWidth = 800
-    maxHeight = 600
+    maxHeight = 800
     spacing = 6
     padding = Insets(6)
     children = List(toolbar, simulationPane)
@@ -87,5 +67,44 @@ object App extends JFXApp {
     scene = new Scene {
       root = appPane
     }
+  }
+
+  def hanldePlaySimulationButton(): Unit = {
+    try {
+      val simulation = new Simulation()
+      val result = simulation.play()
+      playSimulationButton.disable = true
+      buildSource(result)
+      buildFlow(result)
+      buildSink(result)
+    } finally {
+      playSimulationButton.disable = false
+    }
+  }
+  
+  def buildSource(result: Result): Unit = {
+    val messages = result.producedKafkaMessages
+    sourceLabel.text = s"Source: ${messages.size} messages produced for topic ratings."
+  }
+  
+  def buildFlow(result: Result): Unit = {
+    val programs: Map[String, Seq[(Long, Long)]] = result.selectedLineChartDataFromCassandra
+    val flowModel = new ObservableBuffer[jfxsc.XYChart.Series[Number, Number]]()
+    programs foreach { p =>
+      val series = new XYChart.Series[Number, Number] { name = p._1 }
+      p._2 foreach { t =>
+        series.data() += XYChart.Data[Number, Number]( t._1, t._2)
+      }
+      flowModel += series
+    }
+    flowChart.data = flowModel
+  }
+
+  def buildSink(result: Result): Unit = {
+    val sinkModel = new ObservableBuffer[jfxsc.PieChart.Data]()
+    result.selectedPieChartDataFromCassandra map { t =>
+      sinkModel += PieChart.Data( t._1, t._2 )
+    }
+    sinkChart.data = sinkModel
   }
 }
