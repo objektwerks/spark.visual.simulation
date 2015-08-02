@@ -36,8 +36,8 @@ case class RatingDecoder(props: VerifiableProperties = new VerifiableProperties(
 }
 
 case class Result(producedKafkaMessages: Seq[(String, Int, Int, Int)],
-                  selectedLineChartDataFromCassandra: Map[String, Seq[(Long, Long)]],
-                  selectedPieChartDataFromCassandra: Seq[(String, Double)]) {
+                  selectedLineChartDataFromCassandra: Map[String, Seq[(Int, Int)]],
+                  selectedPieChartDataFromCassandra: Seq[(String, Int)]) {
 }
 
 class Simulation {
@@ -74,7 +74,7 @@ class Simulation {
     connector.withSessionDo { session =>
       session.execute("DROP KEYSPACE IF EXISTS simulation;")
       session.execute("CREATE KEYSPACE simulation WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
-      session.execute("CREATE TABLE simulation.ratings(program text, season bigint, episode bigint, rating bigint, PRIMARY KEY (program, season, episode));")
+      session.execute("CREATE TABLE simulation.ratings(program text, season int, episode int, rating int, PRIMARY KEY (program, season, episode));")
     }
   }
 
@@ -113,25 +113,25 @@ class Simulation {
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
   }
 
-  def selectLineChartDataFromCassandra(): Map[String, Seq[(Long, Long)]] = {
+  def selectLineChartDataFromCassandra(): Map[String, Seq[(Int, Int)]] = {
     val sqlContext = new CassandraSQLContext(context)
     val df = sqlContext.sql("select program, episode, rating from simulation.ratings")
     val rows = df.orderBy("program", "episode", "rating").collect()
-    var data = new ArrayBuffer[(String, Long, Long)](rows.length)
+    var data = new ArrayBuffer[(String, Int, Int)](rows.length)
     rows foreach { r =>
-      val tuple = (r.getString(0), r.getLong(1), r.getLong(2))
+      val tuple = (r.getAs[String](0), r.getAs[Int](1), r.getAs[Int](2))
       data += tuple
     }
     data groupBy { t => t._1 } mapValues { _.map { t => (t._2, t._3 ) } }
   }
 
-  def selectPieChartDataFromCassandra(): Seq[(String, Double)] = {
+  def selectPieChartDataFromCassandra(): Seq[(String, Int)] = {
     val sqlContext = new CassandraSQLContext(context)
     val df = sqlContext.sql("select program, rating from simulation.ratings")
     val rows = df.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()
-    val data = new ArrayBuffer[(String, Double)](rows.length)
+    val data = new ArrayBuffer[(String, Int)](rows.length)
     rows foreach { r =>
-      val tuple = (r.getString(0), r.getLong(1).toDouble)
+      val tuple = (r.getAs[String](0), r.getAs[Int](1))
       data += tuple
     }
     data

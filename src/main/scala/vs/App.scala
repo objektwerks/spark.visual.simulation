@@ -92,7 +92,7 @@ object App extends JFXApp {
   }
   
   def buildFlow(result: Result): Unit = {
-    val programs: Map[String, Seq[(Long, Long)]] = result.selectedLineChartDataFromCassandra
+    val programs: Map[String, Seq[(Int, Int)]] = result.selectedLineChartDataFromCassandra
     val flowModel = new ObservableBuffer[jfxsc.XYChart.Series[Number, Number]]()
     programs foreach { p =>
       val series = new XYChart.Series[Number, Number] { name = p._1 }
