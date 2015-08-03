@@ -2,7 +2,6 @@ package vs
 
 import javafx.scene.{chart => jfxsc}
 
-import scala.io.Source
 import scalafx.Includes._
 import scalafx.application.JFXApp
 import scalafx.beans.property.StringProperty
