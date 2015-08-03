@@ -15,7 +15,7 @@ import scalafx.scene.control.TableColumn._
 import scalafx.scene.control._
 import scalafx.scene.layout.VBox
 
-class RatingView(program_ : String, season_ : String, episode_ : String, rating_ : String) {
+class RatingProperty(program_ : String, season_ : String, episode_ : String, rating_ : String) {
   def this(rating: Rating) {
     this(rating.program, rating.season.toString, rating.episode.toString, rating.rating.toString)
   }
@@ -30,12 +30,12 @@ object App extends JFXApp {
     text = "Source"
   }
 
-  val sourceTable = new TableView[RatingView]() {
+  val sourceTable = new TableView[RatingProperty]() {
     columns ++= List(
-      new TableColumn[RatingView, String] { text = "Program"; cellValueFactory = { _.value.program } },
-      new TableColumn[RatingView, String] { text = "Season"; cellValueFactory = { _.value.season } },
-      new TableColumn[RatingView, String] { text = "Episode"; cellValueFactory = { _.value.episode } },
-      new TableColumn[RatingView, String] { text = "Rating"; cellValueFactory = { _.value.rating } }
+      new TableColumn[RatingProperty, String] { text = "Program"; cellValueFactory = { _.value.program } },
+      new TableColumn[RatingProperty, String] { text = "Season"; cellValueFactory = { _.value.season } },
+      new TableColumn[RatingProperty, String] { text = "Episode"; cellValueFactory = { _.value.episode } },
+      new TableColumn[RatingProperty, String] { text = "Rating"; cellValueFactory = { _.value.rating } }
     )
   }
 
@@ -107,8 +107,8 @@ object App extends JFXApp {
 
   def buildSource(result: Result): Unit = {
     val messages: Seq[Rating] = result.producedKafkaMessages
-    val model = new ObservableBuffer[RatingView]()
-    messages foreach { r => model += new RatingView(r) }
+    val model = new ObservableBuffer[RatingProperty]()
+    messages foreach { r => model += new RatingProperty(r) }
     sourceTable.items = model
   }
   
