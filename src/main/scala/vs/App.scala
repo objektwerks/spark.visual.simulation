@@ -2,7 +2,7 @@ package vs
 
 import javafx.scene.{chart => jfxsc}
 
-import scala.concurrent.ExecutionContext
+import scala.io.Source
 import scalafx.Includes._
 import scalafx.application.JFXApp
 import scalafx.beans.property.StringProperty
@@ -25,30 +25,17 @@ class RatingView(program_ : String, season_ : String, episode_ : String, rating_
 }
 
 object App extends JFXApp {
-  implicit def ec = ExecutionContext.global
-
   val sourceLabel = new Label {
     text = "Source"
   }
 
   val sourceTable = new TableView[RatingView]() {
     columns ++= List(
-      new TableColumn[RatingView, String] {
-      text = "Program"
-      cellValueFactory = { _.value.program }
-    },
-      new TableColumn[RatingView, String] {
-      text = "Season"
-      cellValueFactory = { _.value.season }
-    },
-      new TableColumn[RatingView, String] {
-      text = "Episode"
-      cellValueFactory = { _.value.episode }
-    },
-      new TableColumn[RatingView, String] {
-      text = "Rating"
-      cellValueFactory = { _.value.rating }
-    })
+      new TableColumn[RatingView, String] { text = "Program"; cellValueFactory = { _.value.program } },
+      new TableColumn[RatingView, String] { text = "Season"; cellValueFactory = { _.value.season } },
+      new TableColumn[RatingView, String] { text = "Episode"; cellValueFactory = { _.value.episode } },
+      new TableColumn[RatingView, String] { text = "Rating"; cellValueFactory = { _.value.rating } }
+    )
   }
 
   val flowLabel = new Label {
@@ -93,11 +80,11 @@ object App extends JFXApp {
     padding = Insets(6)
     children = List(toolbar, simulationPane)
   }
-
   stage = new JFXApp.PrimaryStage {
     title.value = "Visual Spark"
     scene = new Scene {
-      stylesheets += getClass.getResource("/visual.slick.css").toExternalForm
+      stylesheets.clear()
+      stylesheets += getClass.getResource("/styles.css").toExternalForm
       root = appPane
     }
   }
