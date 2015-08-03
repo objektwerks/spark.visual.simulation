@@ -26,9 +26,7 @@ class RatingProperty(program_ : String, season_ : String, episode_ : String, rat
 }
 
 object App extends JFXApp {
-  val sourceLabel = new Label {
-    text = "Source"
-  }
+  val sourceLabel = new Label { text = "Source" }
 
   val sourceTable = new TableView[RatingProperty]() {
     columns ++= List(
@@ -39,23 +37,16 @@ object App extends JFXApp {
     )
   }
 
-  val flowLabel = new Label {
-    text = "Flow"
-  }
+  val flowLabel = new Label { text = "Flow" }
 
   val flowChart = new LineChart(NumberAxis(axisLabel = "Episodes", lowerBound = 1, upperBound = 10, tickUnit =1),
                                 NumberAxis(axisLabel = "Ratings", lowerBound = 1, upperBound = 10, tickUnit = 1)) {
     title = "Episode Ratings"
   }
 
-  val sinkLabel = new Label {
-    text = "Sink"
-  }
+  val sinkLabel = new Label { text = "Sink" }
 
-  val sinkChart = new PieChart {
-    title = "Program Ratings"
-    clockwise = false
-  }
+  val sinkChart = new PieChart { title = "Program Ratings" }
 
   val simulationPane = new VBox {
     maxWidth = 700
@@ -70,10 +61,12 @@ object App extends JFXApp {
     onAction = handle { hanldePlaySimulationButton() }
   }
 
-  val status = new Label()
+  val progressIndicator = new ProgressIndicator { prefWidth = 50; progress = 0.0}
+
+  val statusBar = new Label()
 
   val toolbar = new ToolBar {
-    content = List(playSimulationButton, new Separator(), status)
+    content = List(playSimulationButton, new Separator(), progressIndicator, new Separator(), statusBar)
   }
 
   val appPane = new VBox {
@@ -92,16 +85,22 @@ object App extends JFXApp {
 
   def hanldePlaySimulationButton(): Unit = {
     playSimulationButton.disable = true
+    progressIndicator.progress = 0.0
     val stopWatch = new StopWatch()
     stopWatch.start()
-    val simulation = new Simulation()
-    val result = simulation.play()
+    progressIndicator.progress = 0.10
+    val result = new Simulation().play()
+    progressIndicator.progress = 0.40
     buildSource(result)
+    progressIndicator.progress = 0.50
     buildFlow(result)
+    progressIndicator.progress = 0.70
     buildSink(result)
+    progressIndicator.progress = 0.90
     stopWatch.stop()
     val elapased = stopWatch.getTime / 1000
-    status.text = s"${result.producedKafkaMessages.size} messages processed in $elapased seconds."
+    statusBar.text = s"${result.producedKafkaMessages.size} messages processed in $elapased seconds."
+    progressIndicator.progress = 1.0
     playSimulationButton.disable = false
   }
 
