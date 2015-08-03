@@ -2,6 +2,8 @@ package vs
 
 import javafx.scene.{chart => jfxsc}
 
+import org.apache.commons.lang3.time.StopWatch
+
 import scalafx.Includes._
 import scalafx.application.JFXApp
 import scalafx.beans.property.StringProperty
@@ -56,7 +58,7 @@ object App extends JFXApp {
   }
 
   val simulationPane = new VBox {
-    maxWidth = 800
+    maxWidth = 700
     maxHeight = 800
     spacing = 6
     padding = Insets(6)
@@ -68,12 +70,14 @@ object App extends JFXApp {
     onAction = handle { hanldePlaySimulationButton() }
   }
 
+  val status = new Label()
+
   val toolbar = new ToolBar {
-    content = List(playSimulationButton)
+    content = List(playSimulationButton, new Separator(), status)
   }
 
   val appPane = new VBox {
-    maxWidth = 800
+    maxWidth = 700
     maxHeight = 800
     spacing = 6
     padding = Insets(6)
@@ -88,11 +92,16 @@ object App extends JFXApp {
 
   def hanldePlaySimulationButton(): Unit = {
     playSimulationButton.disable = true
+    val stopWatch = new StopWatch()
+    stopWatch.start()
     val simulation = new Simulation()
     val result = simulation.play()
     buildSource(result)
     buildFlow(result)
     buildSink(result)
+    stopWatch.stop()
+    val elapased = stopWatch.getTime / 1000
+    status.text = s"${result.producedKafkaMessages.size} messages processed in $elapased seconds."
     playSimulationButton.disable = false
   }
 
