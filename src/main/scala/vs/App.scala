@@ -72,11 +72,9 @@ object App extends JFXApp {
     children = List(sourceLabel, sourceTable, flowLabel, flowChart, sinkLabel, sinkChart)
   }
 
-  val stateProperty = SimulationTask.state
-
   val playSimulationButton = new Button {
     text = "Play"
-    disable <== stateProperty =!= jfxc.Worker.State.READY
+    disable <== SimulationTask.running
     onAction = { ae: ActionEvent => new Thread(SimulationTask).start() }
   }
 
