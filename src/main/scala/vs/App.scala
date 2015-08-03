@@ -1,13 +1,16 @@
 package vs
 
 import javafx.scene.{chart => jfxsc}
+import javafx.{concurrent => jfxc}
 
 import org.apache.commons.lang3.time.StopWatch
 
 import scalafx.Includes._
 import scalafx.application.JFXApp
-import scalafx.beans.property.StringProperty
+import scalafx.beans.property.{ObjectProperty, StringProperty}
 import scalafx.collections.ObservableBuffer
+import scalafx.concurrent.Task
+import scalafx.event.ActionEvent
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
 import scalafx.scene.chart._
@@ -24,6 +27,19 @@ class RatingProperty(program_ : String, season_ : String, episode_ : String, rat
   val episode = new StringProperty(this, "episode", episode_)
   val rating = new StringProperty(this, "rating", rating_)
 }
+
+object SimulationTask extends Task(new jfxc.Task[Result] {
+  override def call(): Result = {
+    updateMessage("Release the hounds...")
+    val stopWatch = new StopWatch()
+    stopWatch.start()
+    val result = new Simulation().play()
+    stopWatch.stop()
+    val elapased = stopWatch.getTime / 1000
+    updateMessage(s"${result.producedKafkaMessages.size} messages processed in $elapased seconds.")
+    result
+  }
+})
 
 object App extends JFXApp {
   val sourceLabel = new Label { text = "Source" }
@@ -56,14 +72,29 @@ object App extends JFXApp {
     children = List(sourceLabel, sourceTable, flowLabel, flowChart, sinkLabel, sinkChart)
   }
 
+  val stateProperty = SimulationTask.state
+
   val playSimulationButton = new Button {
     text = "Play"
-    onAction = handle { hanldePlaySimulationButton() }
+    disable <== stateProperty =!= jfxc.Worker.State.READY
+    onAction = { ae: ActionEvent => new Thread(SimulationTask).start() }
   }
 
-  val progressIndicator = new ProgressIndicator { prefWidth = 50; progress = 0.0}
+  val simulationTaskCompleted = new ObjectProperty[Result]()
+  simulationTaskCompleted <== SimulationTask.value
+  simulationTaskCompleted.onChange({
+    build(simulationTaskCompleted.value)
+  })
 
-  val statusBar = new Label()
+  val progressIndicator = new ProgressIndicator {
+    prefWidth = 50
+    progress = -1.0
+    visible <== SimulationTask.running
+  }
+
+  val statusBar = new Label {
+    text <== SimulationTask.message
+  }
 
   val toolbar = new ToolBar {
     content = List(playSimulationButton, new Separator(), progressIndicator, new Separator(), statusBar)
@@ -83,25 +114,10 @@ object App extends JFXApp {
     }
   }
 
-  def hanldePlaySimulationButton(): Unit = {
-    playSimulationButton.disable = true
-    progressIndicator.progress = 0.0
-    val stopWatch = new StopWatch()
-    stopWatch.start()
-    progressIndicator.progress = 0.10
-    val result = new Simulation().play()
-    progressIndicator.progress = 0.40
+  def build(result: Result): Unit = {
     buildSource(result)
-    progressIndicator.progress = 0.50
     buildFlow(result)
-    progressIndicator.progress = 0.70
     buildSink(result)
-    progressIndicator.progress = 0.90
-    stopWatch.stop()
-    val elapased = stopWatch.getTime / 1000
-    statusBar.text = s"${result.producedKafkaMessages.size} messages processed in $elapased seconds."
-    progressIndicator.progress = 1.0
-    playSimulationButton.disable = false
   }
 
   def buildSource(result: Result): Unit = {
