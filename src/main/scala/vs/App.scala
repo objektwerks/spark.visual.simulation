@@ -138,6 +138,7 @@ object App extends JFXApp {
 
   def buildSink(result: Result): Unit = {
     val model: Seq[(String, Long)] = result.pieChartData
-    sinkChart.data = model map { case (x, y) => PieChart.Data(x + s"($y)", y) }
+    val total: Float = model.map(_._2).sum
+    sinkChart.data = model map { case (x, y) => PieChart.Data(f"$x(${ (y / total) * 100}%.0f%%)", y) }
   }
 }
