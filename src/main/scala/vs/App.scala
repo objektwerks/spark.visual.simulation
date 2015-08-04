@@ -105,6 +105,7 @@ object App extends JFXApp {
     padding = Insets(6)
     children = List(toolbar, simulationPane)
   }
+
   stage = new JFXApp.PrimaryStage {
     title.value = "Visual Spark"
     scene = new Scene {
