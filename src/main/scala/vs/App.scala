@@ -66,7 +66,7 @@ object App extends JFXApp {
 
   val simulationPane = new VBox {
     maxWidth = 700
-    maxHeight = 800
+    maxHeight = 820
     spacing = 6
     padding = Insets(6)
     children = List(sourceLabel, sourceTable, flowLabel, flowChart, sinkLabel, sinkChart)
@@ -100,7 +100,7 @@ object App extends JFXApp {
 
   val appPane = new VBox {
     maxWidth = 700
-    maxHeight = 800
+    maxHeight = 820
     spacing = 6
     padding = Insets(6)
     children = List(toolbar, simulationPane)
@@ -138,6 +138,6 @@ object App extends JFXApp {
 
   def buildSink(result: Result): Unit = {
     val model: Seq[(String, Long)] = result.pieChartData
-    sinkChart.data = model map { case (x, y) => PieChart.Data(x, y) }
+    sinkChart.data = model map { case (x, y) => PieChart.Data(x + s"($y)", y) }
   }
 }
