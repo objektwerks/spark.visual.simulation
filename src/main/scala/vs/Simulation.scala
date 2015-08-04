@@ -4,11 +4,10 @@ import java.util.Properties
 
 import com.datastax.spark.connector.SomeColumns
 import com.datastax.spark.connector.cql.CassandraConnector
-import com.datastax.spark.connector.mapper.DefaultColumnMapper
 import kafka.admin.AdminUtils
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
-import kafka.serializer.{Decoder, Encoder, StringDecoder}
-import kafka.utils.{VerifiableProperties, ZKStringSerializer}
+import kafka.serializer.StringDecoder
+import kafka.utils.ZKStringSerializer
 import org.I0Itec.zkclient.ZkClient
 import org.apache.spark.sql.cassandra.CassandraSQLContext
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
@@ -18,30 +17,15 @@ import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
-import scala.pickling.Defaults._
-import scala.pickling.binary._
 
 case class Rating(program: String, season: Int, episode: Int, rating: Int)
 
-object Rating {
-  implicit object Mapper extends DefaultColumnMapper[Rating](Map("program" -> "program", "season" -> "season", "episode" -> "episode", "rating" -> "rating"))
-}
-
-case class RatingEncoder(props: VerifiableProperties = new VerifiableProperties()) extends Encoder[Rating] {
-  override def toBytes(rating: Rating): Array[Byte] = { rating.pickle.value }
-}
-
-case class RatingDecoder(props: VerifiableProperties = new VerifiableProperties()) extends Decoder[Rating] {
-  override def fromBytes(bytes: Array[Byte]): Rating = { bytes.unpickle[Rating] }
-}
-
-case class Result(producedKafkaMessages: Seq[Rating],
-                  selectedLineChartDataFromCassandra: Map[String, Seq[(Int, Int)]],
-                  selectedPieChartDataFromCassandra: Seq[(String, Long)]) {
-}
+case class Result(kafkaMessages: Seq[Rating], lineChartData: Map[String, Seq[(Int, Int)]], pieChartData: Seq[(String, Long)])
 
 class Simulation {
-  val conf = new SparkConf().setMaster("local[2]").setAppName("sparky").set("spark.cassandra.connection.host", "127.0.0.1")
+  val conf = new SparkConf().setMaster("local[4]").setAppName("sparky")
+    .set("spark.cassandra.connection.host", "127.0.0.1")
+    .set("spark.executor.memory", "1g")
   val context = new SparkContext(conf)
   val connector = CassandraConnector(conf)
   val topic = "ratings"

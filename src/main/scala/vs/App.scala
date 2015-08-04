@@ -36,7 +36,7 @@ object SimulationTask extends Task(new jfxc.Task[Result] {
     val result = new Simulation().play()
     stopWatch.stop()
     val elapased = stopWatch.getTime / 1000
-    updateMessage(s"${result.producedKafkaMessages.size} messages processed in $elapased seconds.")
+    updateMessage(s"${result.kafkaMessages.size} messages processed in $elapased seconds.")
     result
   }
 })
@@ -119,14 +119,14 @@ object App extends JFXApp {
   }
 
   def buildSource(result: Result): Unit = {
-    val messages: Seq[Rating] = result.producedKafkaMessages
+    val messages: Seq[Rating] = result.kafkaMessages
     val model = new ObservableBuffer[RatingProperty]()
     messages foreach { r => model += new RatingProperty(r) }
     sourceTable.items = model
   }
   
   def buildFlow(result: Result): Unit = {
-    val programs: Map[String, Seq[(Int, Int)]] = result.selectedLineChartDataFromCassandra
+    val programs: Map[String, Seq[(Int, Int)]] = result.lineChartData
     val model = new ObservableBuffer[jfxsc.XYChart.Series[Number, Number]]()
     programs foreach { p =>
       val series = new XYChart.Series[Number, Number] { name = p._1 }
@@ -137,7 +137,7 @@ object App extends JFXApp {
   }
 
   def buildSink(result: Result): Unit = {
-    val model: Seq[(String, Long)] = result.selectedPieChartDataFromCassandra
+    val model: Seq[(String, Long)] = result.pieChartData
     sinkChart.data = model map { case (x, y) => PieChart.Data(x, y) }
   }
 }
