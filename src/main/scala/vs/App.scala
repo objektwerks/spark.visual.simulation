@@ -5,6 +5,7 @@ import javafx.{concurrent => jfxc}
 
 import org.apache.commons.lang3.time.StopWatch
 
+import scala.concurrent.ExecutionContext
 import scalafx.Includes._
 import scalafx.application.JFXApp
 import scalafx.beans.property.{ObjectProperty, StringProperty}
@@ -75,7 +76,7 @@ object App extends JFXApp {
   val playSimulationButton = new Button {
     text = "Play"
     disable <== SimulationTask.running
-    onAction = { ae: ActionEvent => new Thread(SimulationTask).start() }
+    onAction = { ae: ActionEvent => ExecutionContext.global.execute(SimulationTask) }
   }
 
   val simulationTaskCompleted = new ObjectProperty[Result]()
