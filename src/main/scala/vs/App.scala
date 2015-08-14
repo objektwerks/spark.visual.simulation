@@ -19,16 +19,6 @@ import scalafx.scene.control.TableColumn._
 import scalafx.scene.control._
 import scalafx.scene.layout.VBox
 
-class RatingProperty(program_ : String, season_ : String, episode_ : String, rating_ : String) {
-  def this(rating: Rating) {
-    this(rating.program, rating.season.toString, rating.episode.toString, rating.rating.toString)
-  }
-  val program = new StringProperty(this, "program", program_)
-  val season = new StringProperty(this, "season", season_)
-  val episode = new StringProperty(this, "episode", episode_)
-  val rating = new StringProperty(this, "rating", rating_)
-}
-
 object SimulationTask extends Task(new jfxc.Task[Result] {
   override def call(): Result = {
     updateMessage("Release the hounds...")
@@ -37,12 +27,22 @@ object SimulationTask extends Task(new jfxc.Task[Result] {
     val result = new Simulation().play()
     stopWatch.stop()
     val elapased = stopWatch.getTime / 1000
-    updateMessage(s"${result.kafkaMessages.size} messages processed in $elapased seconds.")
+    updateMessage(s"${result.ratings.size} messages processed in $elapased seconds.")
     result
   }
 })
 
 object App extends JFXApp {
+  class RatingProperty(program_ : String, season_ : String, episode_ : String, rating_ : String) {
+    def this(rating: (String, String, String, String)) {
+      this(rating._1, rating._2, rating._3, rating._4)
+    }
+    val program = new StringProperty(this, "program", program_)
+    val season = new StringProperty(this, "season", season_)
+    val episode = new StringProperty(this, "episode", episode_)
+    val rating = new StringProperty(this, "rating", rating_)
+  }
+
   val sourceLabel = new Label { text = "Source" }
 
   val sourceTable = new TableView[RatingProperty]() {
@@ -115,32 +115,35 @@ object App extends JFXApp {
   }
 
   def build(result: Result): Unit = {
-    buildSource(result)
-    buildFlow(result)
-    buildSink(result)
+    buildSourceTable(result.ratings)
+    buildFlowChart(result.episodeRatings)
+    buildSinkChart(result.programRatings)
   }
 
-  def buildSource(result: Result): Unit = {
-    val messages: Seq[Rating] = result.kafkaMessages
+  def buildSourceTable(ratings: Seq[(String, String, String, String)]): Unit = {
     val model = new ObservableBuffer[RatingProperty]()
-    messages foreach { r => model += new RatingProperty(r) }
+    ratings foreach {
+      rating => model += new RatingProperty(rating)
+    }
     sourceTable.items = model
   }
-  
-  def buildFlow(result: Result): Unit = {
-    val programs: Map[String, Seq[(Int, Int)]] = result.lineChartData
+
+  def buildFlowChart(episodeRatings: Map[String, Seq[(Int, Int)]]): Unit = {
     val model = new ObservableBuffer[jfxsc.XYChart.Series[Number, Number]]()
-    programs foreach { p =>
-      val series = new XYChart.Series[Number, Number] { name = p._1 }
-      p._2 foreach { t => series.data() += XYChart.Data[Number, Number]( t._1, t._2) }
+    episodeRatings foreach { episode =>
+      val series = new XYChart.Series[Number, Number] { name = episode._1 }
+      episode._2 foreach {
+        rating => series.data() += XYChart.Data[Number, Number]( rating._1, rating._2)
+      }
       model += series
     }
     flowChart.data = model
   }
 
-  def buildSink(result: Result): Unit = {
-    val model: Seq[(String, Long)] = result.pieChartData
-    val total: Float = model.map(_._2).sum
-    sinkChart.data = model map { case (x, y) => PieChart.Data(f"$x(${ (y / total) * 100}%.0f%%)", y) }
+  def buildSinkChart(programRatings: Seq[(String, Long)]): Unit = {
+    val ratingTotal: Float = programRatings.map(_._2).sum
+    sinkChart.data = programRatings map {
+      case (program, rating) => PieChart.Data( f"$program(${ (rating / ratingTotal) * 100}%.0f%%)", rating )
+    }
   }
 }

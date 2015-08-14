@@ -6,9 +6,9 @@ class SimulationTest extends FunSuite {
   test("simulation") {
     val simulation = new Simulation()
     val result = simulation.play()
-    assert(result.kafkaMessages.nonEmpty)
-    assert(result.lineChartData.nonEmpty)
-    assert(result.pieChartData.nonEmpty)
+    assert(result.ratings.nonEmpty)
+    assert(result.episodeRatings.nonEmpty)
+    assert(result.programRatings.nonEmpty)
     println(result.toString)
   }
 }
