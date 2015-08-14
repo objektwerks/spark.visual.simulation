@@ -28,9 +28,9 @@ class Simulation {
 
   def play(): Result = {
     createKafkaTopic()
-    createCassandraStore()
-    val ratings = produceKafkaTopicMessages()
-    consumeKafkaTopicMessages()
+    createCassandraKeyspaceAndTable()
+    val ratings = produceAndSendKafkaTopicMessages()
+    consumeKafkaTopicMessagesAsDirectStream()
     val episodeRatings = selectProgramToEpisodesRatingsFromCassandra()
     val programRatings = selectProgramRatingsFromCassandra()
     context.stop()
@@ -46,7 +46,7 @@ class Simulation {
     }
   }
 
-  def createCassandraStore(): Unit = {
+  def createCassandraKeyspaceAndTable(): Unit = {
     val connector = CassandraConnector(conf)
     connector.withSessionDo { session =>
       session.execute("DROP KEYSPACE IF EXISTS simulation;")
@@ -55,7 +55,7 @@ class Simulation {
     }
   }
 
-  def produceKafkaTopicMessages(): Seq[(String, String, String, String)] = {
+  def produceAndSendKafkaTopicMessages(): Seq[(String, String, String, String)] = {
     val props = new Properties
     props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
     val config = new ProducerConfig(props)
@@ -73,7 +73,7 @@ class Simulation {
     ratings
   }
 
-  def consumeKafkaTopicMessages(): Unit = {
+  def consumeKafkaTopicMessagesAsDirectStream(): Unit = {
     import com.datastax.spark.connector.streaming._
     val streamingContext = new StreamingContext(context, Milliseconds(3000))
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
