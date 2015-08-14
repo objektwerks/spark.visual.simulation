@@ -17,25 +17,24 @@ import org.apache.spark.{SparkConf, SparkContext}
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
-case class Result(ratings: Seq[(String, String, String, String)], episodeRatings: Map[String, Seq[(Int, Int)]], programRatings: Seq[(String, Long)])
+case class Result(ratings: Seq[(String, String, String, String)],
+                  programToEpisodesRatings: Map[String, Seq[(Int, Int)]],
+                  programRatings: Seq[(String, Long)])
 
 class Simulation {
-  val conf = new SparkConf().setMaster("local[4]").setAppName("sparky")
-    .set("spark.cassandra.connection.host", "127.0.0.1")
-    .set("spark.executor.memory", "1g")
+  val conf = new SparkConf().setMaster("local[4]").setAppName("sparky").set("spark.cassandra.connection.host", "127.0.0.1")
   val context = new SparkContext(conf)
-  val connector = CassandraConnector(conf)
   val topic = "ratings"
 
   def play(): Result = {
     createKafkaTopic()
     createCassandraStore()
-    val messages = produceKafkaTopicMessages()
+    val ratings = produceKafkaTopicMessages()
     consumeKafkaTopicMessages()
-    val lineChartData = selectLineChartDataFromCassandra()
-    val pieChartData = selectPieChartDataFromCassandra()
+    val episodeRatings = selectProgramToEpisodesRatingsFromCassandra()
+    val programRatings = selectProgramRatingsFromCassandra()
     context.stop()
-    Result(messages, lineChartData, pieChartData)
+    Result(ratings, episodeRatings, programRatings)
   }
 
   def createKafkaTopic(): Unit = {
@@ -48,6 +47,7 @@ class Simulation {
   }
 
   def createCassandraStore(): Unit = {
+    val connector = CassandraConnector(conf)
     connector.withSessionDo { session =>
       session.execute("DROP KEYSPACE IF EXISTS simulation;")
       session.execute("CREATE KEYSPACE simulation WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
@@ -60,17 +60,17 @@ class Simulation {
     props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
     val config = new ProducerConfig(props)
     val producer = new Producer[String, String](config)
-    val _messages = ArrayBuffer[(String, String, String, String)]()
-    val messages = ArrayBuffer[KeyedMessage[String, String]]()
-    val ratings = Source.fromInputStream(getClass.getResourceAsStream("/ratings")).getLines.toSeq
-    ratings foreach { l =>
-      val fields = l.split(",")
-      val tuple = (fields(0), fields(1), fields(2), fields(3))
-      _messages += tuple
-      messages += KeyedMessage[String, String](topic = topic, key = l, partKey = 0, message = l)
+    val source = Source.fromInputStream(getClass.getResourceAsStream("/ratings")).getLines.toSeq
+    val ratings = ArrayBuffer[(String, String, String, String)]()
+    val keyedMessages = ArrayBuffer[KeyedMessage[String, String]]()
+    source foreach { line =>
+      val fields = line.split(",")
+      val rating = (fields(0), fields(1), fields(2), fields(3))
+      ratings += rating
+      keyedMessages += KeyedMessage[String, String](topic = topic, key = line, partKey = 0, message = line)
     }
-    producer.send(messages: _*)
-    _messages
+    producer.send(keyedMessages: _*)
+    ratings
   }
 
   def consumeKafkaTopicMessages(): Unit = {
@@ -90,25 +90,25 @@ class Simulation {
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
   }
 
-  def selectLineChartDataFromCassandra(): Map[String, Seq[(Int, Int)]] = {
+  def selectProgramToEpisodesRatingsFromCassandra(): Map[String, Seq[(Int, Int)]] = {
     val sqlContext = new CassandraSQLContext(context)
     val df = sqlContext.sql("select program, episode, rating from simulation.ratings")
     val rows = df.orderBy("program", "episode", "rating").collect()
     var data = new ArrayBuffer[(String, Int, Int)](rows.length)
-    rows foreach { r =>
-      val tuple = (r.getAs[String](0), r.getAs[Int](1), r.getAs[Int](2))
+    rows foreach { row =>
+      val tuple = (row.getAs[String](0), row.getAs[Int](1), row.getAs[Int](2))
       data += tuple
     }
-    data groupBy { t => t._1 } mapValues { _.map { t => (t._2, t._3 ) } }
+    data groupBy { program => program._1 } mapValues { _.map { episodeAndRating => (episodeAndRating._2, episodeAndRating._3 ) } }
   }
 
-  def selectPieChartDataFromCassandra(): Seq[(String, Long)] = {
+  def selectProgramRatingsFromCassandra(): Seq[(String, Long)] = {
     val sqlContext = new CassandraSQLContext(context)
     val df = sqlContext.sql("select program, rating from simulation.ratings")
     val rows = df.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()
     val data = new ArrayBuffer[(String, Long)](rows.length)
-    rows foreach { r =>
-      val tuple = (r.getAs[String](0), r.getAs[Long](1))
+    rows foreach { row =>
+      val tuple = (row.getAs[String](0), row.getAs[Long](1))
       data += tuple
     }
     data

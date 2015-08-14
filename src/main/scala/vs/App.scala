@@ -116,24 +116,24 @@ object App extends JFXApp {
 
   def build(result: Result): Unit = {
     buildSourceTable(result.ratings)
-    buildFlowChart(result.episodeRatings)
+    buildFlowChart(result.programToEpisodesRatings)
     buildSinkChart(result.programRatings)
   }
 
   def buildSourceTable(ratings: Seq[(String, String, String, String)]): Unit = {
     val model = new ObservableBuffer[RatingProperty]()
-    ratings foreach {
-      rating => model += new RatingProperty(rating)
+    ratings foreach { rating =>
+      model += new RatingProperty(rating)
     }
     sourceTable.items = model
   }
 
-  def buildFlowChart(episodeRatings: Map[String, Seq[(Int, Int)]]): Unit = {
+  def buildFlowChart(programToEpisodesRatings: Map[String, Seq[(Int, Int)]]): Unit = {
     val model = new ObservableBuffer[jfxsc.XYChart.Series[Number, Number]]()
-    episodeRatings foreach { episode =>
-      val series = new XYChart.Series[Number, Number] { name = episode._1 }
-      episode._2 foreach {
-        rating => series.data() += XYChart.Data[Number, Number]( rating._1, rating._2)
+    programToEpisodesRatings foreach { program =>
+      val series = new XYChart.Series[Number, Number] { name = program._1 }
+      program._2 foreach { episodeAndRating =>
+        series.data() += XYChart.Data[Number, Number]( episodeAndRating._1, episodeAndRating._2)
       }
       model += series
     }
