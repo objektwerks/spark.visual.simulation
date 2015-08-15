@@ -22,9 +22,12 @@ case class Result(ratings: Seq[(String, String, String, String)], // Source
                   programRatings: Seq[(String, Long)]) // Sink
 
 class Simulation {
-  val conf = new SparkConf().setMaster("local[4]").setAppName("sparky").set("spark.cassandra.connection.host", "127.0.0.1")
+  val conf = new SparkConf()
+    .setMaster("local[2]")
+    .setAppName("sparky")
+    .set("spark.cassandra.connection.host", "127.0.0.1")
   val context = new SparkContext(conf)
-  val topic = "ratings"
+  val kafkaTopic = "ratings"
 
   def play(): Result = {
     createKafkaTopic()
@@ -39,10 +42,10 @@ class Simulation {
 
   def createKafkaTopic(): Unit = {
     val zkClient = new ZkClient("localhost:2181", 3000, 3000, ZKStringSerializer)
-    val metadata = AdminUtils.fetchTopicMetadataFromZk(topic, zkClient)
+    val metadata = AdminUtils.fetchTopicMetadataFromZk(kafkaTopic, zkClient)
     metadata.partitionsMetadata.foreach(println)
-    if (metadata.topic != topic) {
-      AdminUtils.createTopic(zkClient, topic, 1, 1)
+    if (metadata.topic != kafkaTopic) {
+      AdminUtils.createTopic(zkClient, kafkaTopic, 1, 1)
     }
   }
 
@@ -68,7 +71,7 @@ class Simulation {
       val fields = line.split(",")
       val rating = (fields(0), fields(1), fields(2), fields(3))
       ratings += rating
-      keyedMessages += KeyedMessage[String, String](topic = topic, key = line, partKey = 0, message = line)
+      keyedMessages += KeyedMessage[String, String](topic = kafkaTopic, key = line, partKey = 0, message = line)
     }
     producer.send(keyedMessages: _*)
     ratings
@@ -79,8 +82,8 @@ class Simulation {
     import com.datastax.spark.connector.streaming._
     val streamingContext = new StreamingContext(context, Milliseconds(3000))
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
-    val topics = Set(topic)
-    val is = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
+    val kafkaTopics = Set(kafkaTopic)
+    val is = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, kafkaTopics)
     val ds = is map { rdd =>
       val fields = rdd._2.split(",")
       val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
