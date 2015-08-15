@@ -15,7 +15,7 @@ import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ArrayBuffer
-import scala.io.Source
+import scala.io.Sourcech
 
 case class Result(ratings: Seq[(String, String, String, String)], // Source
                   programToEpisodesRatings: Map[String, Seq[(Int, Int)]], // Flow
@@ -31,10 +31,10 @@ class Simulation {
     createCassandraKeyspaceAndTable()
     val ratings = produceAndSendKafkaTopicMessages()
     consumeKafkaTopicMessagesAsDirectStream()
-    val episodeRatings = selectProgramToEpisodesRatingsFromCassandra()
+    val programToEpisodesRatings = selectProgramToEpisodesRatingsFromCassandra()
     val programRatings = selectProgramRatingsFromCassandra()
     context.stop()
-    Result(ratings, episodeRatings, programRatings)
+    Result(ratings, programToEpisodesRatings, programRatings)
   }
 
   def createKafkaTopic(): Unit = {
