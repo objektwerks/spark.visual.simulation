@@ -15,7 +15,7 @@ import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ArrayBuffer
-import scala.io.Sourcech
+import scala.io.Source
 
 case class Result(ratings: Seq[(String, String, String, String)], // Source
                   programToEpisodesRatings: Map[String, Seq[(Int, Int)]], // Flow
