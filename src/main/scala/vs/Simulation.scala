@@ -17,9 +17,9 @@ import org.apache.spark.{SparkConf, SparkContext}
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
-case class Result(ratings: Seq[(String, String, String, String)],
-                  programToEpisodesRatings: Map[String, Seq[(Int, Int)]],
-                  programRatings: Seq[(String, Long)])
+case class Result(ratings: Seq[(String, String, String, String)], // Source
+                  programToEpisodesRatings: Map[String, Seq[(Int, Int)]], // Flow
+                  programRatings: Seq[(String, Long)]) // Sink
 
 class Simulation {
   val conf = new SparkConf().setMaster("local[4]").setAppName("sparky").set("spark.cassandra.connection.host", "127.0.0.1")
@@ -55,6 +55,7 @@ class Simulation {
     }
   }
 
+  // Source
   def produceAndSendKafkaTopicMessages(): Seq[(String, String, String, String)] = {
     val props = new Properties
     props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
@@ -73,6 +74,7 @@ class Simulation {
     ratings
   }
 
+  // Flow
   def consumeKafkaTopicMessagesAsDirectStream(): Unit = {
     import com.datastax.spark.connector.streaming._
     val streamingContext = new StreamingContext(context, Milliseconds(3000))
@@ -90,6 +92,7 @@ class Simulation {
     streamingContext.stop(stopSparkContext = false, stopGracefully = true)
   }
 
+  // Flow
   def selectProgramToEpisodesRatingsFromCassandra(): Map[String, Seq[(Int, Int)]] = {
     val sqlContext = new CassandraSQLContext(context)
     val df = sqlContext.sql("select program, episode, rating from simulation.ratings")
@@ -102,6 +105,7 @@ class Simulation {
     data groupBy { program => program._1 } mapValues { _.map { episodeAndRating => (episodeAndRating._2, episodeAndRating._3 ) } }
   }
 
+  // Sink
   def selectProgramRatingsFromCassandra(): Seq[(String, Long)] = {
     val sqlContext = new CassandraSQLContext(context)
     val df = sqlContext.sql("select program, rating from simulation.ratings")
