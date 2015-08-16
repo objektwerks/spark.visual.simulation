@@ -22,11 +22,11 @@ case class Result(ratings: Seq[(String, String, String, String)], // Source
                   programRatings: Seq[(String, Long)]) // Sink
 
 class Simulation {
-  val conf = new SparkConf()
+  val sparkConf = new SparkConf()
     .setMaster("local[2]")
     .setAppName("sparky")
     .set("spark.cassandra.connection.host", "127.0.0.1")
-  val context = new SparkContext(conf)
+  val sparkContext = new SparkContext(sparkConf)
   val kafkaTopic = "ratings"
 
   def play(): Result = {
@@ -36,7 +36,7 @@ class Simulation {
     consumeKafkaTopicMessagesAsDirectStream()
     val programToEpisodesRatings = selectProgramToEpisodesRatingsFromCassandra()
     val programRatings = selectProgramRatingsFromCassandra()
-    context.stop()
+    sparkContext.stop()
     Result(ratings, programToEpisodesRatings, programRatings)
   }
 
@@ -50,7 +50,7 @@ class Simulation {
   }
 
   def createCassandraKeyspaceAndTable(): Unit = {
-    val connector = CassandraConnector(conf)
+    val connector = CassandraConnector(sparkConf)
     connector.withSessionDo { session =>
       session.execute("DROP KEYSPACE IF EXISTS simulation;")
       session.execute("CREATE KEYSPACE simulation WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
@@ -80,7 +80,7 @@ class Simulation {
   // Flow
   def consumeKafkaTopicMessagesAsDirectStream(): Unit = {
     import com.datastax.spark.connector.streaming._
-    val streamingContext = new StreamingContext(context, Milliseconds(3000))
+    val streamingContext = new StreamingContext(sparkContext, Milliseconds(3000))
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
     val kafkaTopics = Set(kafkaTopic)
     val is = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, kafkaTopics)
@@ -97,7 +97,7 @@ class Simulation {
 
   // Flow
   def selectProgramToEpisodesRatingsFromCassandra(): Map[String, Seq[(Int, Int)]] = {
-    val sqlContext = new CassandraSQLContext(context)
+    val sqlContext = new CassandraSQLContext(sparkContext)
     val df = sqlContext.sql("select program, episode, rating from simulation.ratings")
     val rows = df.orderBy("program", "episode", "rating").collect()
     var data = new ArrayBuffer[(String, Int, Int)](rows.length)
@@ -110,7 +110,7 @@ class Simulation {
 
   // Sink
   def selectProgramRatingsFromCassandra(): Seq[(String, Long)] = {
-    val sqlContext = new CassandraSQLContext(context)
+    val sqlContext = new CassandraSQLContext(sparkContext)
     val df = sqlContext.sql("select program, rating from simulation.ratings")
     val rows = df.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()
     val data = new ArrayBuffer[(String, Long)](rows.length)
