@@ -1,7 +1,7 @@
 Visual Spark
 ------------
 >The purpose of the project is to build a Spark simulator that executes a visual simulation of a data source ~> spark
-flow ~> data sink pipeline using Scala 2.11.7.
+flow ~> data sink pipeline using Scala 2.11.7. WARNING: Spark-Cassandra-Connector 1.5-M* is incompatible with Spark 1.5
 
 ***
 
