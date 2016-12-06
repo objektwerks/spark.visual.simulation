@@ -1,6 +1,7 @@
 package vs
 
 import java.util.Properties
+import java.util.concurrent.TimeUnit
 
 import com.datastax.spark.connector.SomeColumns
 import com.datastax.spark.connector.cql.CassandraConnector
@@ -77,6 +78,7 @@ class Simulation {
       val record = new ProducerRecord[String, String](kafkaTopic, 0, line, line)
       producer.send(record)
     }
+    producer.close(3000L, TimeUnit.MILLISECONDS)
     ratings
   }
 
@@ -92,6 +94,7 @@ class Simulation {
       Subscribe[String, String](kafkaTopics, kafkaParams)
     )
     val ds = is map { record =>
+      println(record.toString)
       val fields = record.value.split(",")
       val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
       tuple
