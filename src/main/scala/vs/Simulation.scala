@@ -116,8 +116,8 @@ class Simulation {
 
   // Sink
   def selectProgramRatingsFromCassandra(): Seq[(String, Long)] = {
-    val df = sparkSession.sql("select program, rating from simulation.ratings")
-    val rows = df.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()
+    val dataframe = sparkSession.sql("select program, rating from simulation.ratings")
+    val rows = dataframe.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()
     val data = new ArrayBuffer[(String, Long)](rows.length)
     rows foreach { row =>
       val tuple = (row.getAs[String](0), row.getAs[Long](1))
