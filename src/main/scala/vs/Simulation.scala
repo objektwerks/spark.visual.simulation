@@ -24,7 +24,7 @@ case class Result(ratings: Seq[(String, String, String, String)], // Source
 class Simulation {
   val sparkConf = new SparkConf(loadDefaults = true)
     .setMaster("local[2]")
-    .setAppName("sparky")
+    .setAppName("simulation")
     .set("spark.cassandra.connection.host", "127.0.0.1")
     .set("spark.cassandra.auth.username", "cassandra")
     .set("spark.cassandra.auth.password", "cassandra")
