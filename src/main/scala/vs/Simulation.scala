@@ -34,6 +34,7 @@ class Simulation {
     .config("spark.cassandra.auth.username", "cassandra")
     .config("spark.cassandra.auth.password", "cassandra")
     .getOrCreate()
+  val externalTable = spark.catalog.createExternalTable("rating", "org.apache.spark.sql.cassandra", Map("keyspace" -> "simulation", "table" -> "ratings"))
 
   val kafkaProducerProperties = loadProperties("/kafka.producer.properties")
   val kafkaConsumerProperties = toMap(loadProperties("/kafka.consumer.properties"))
@@ -100,7 +101,7 @@ class Simulation {
 
   // Flow
   def selectProgramToEpisodesRatingsFromCassandra(): Map[String, Seq[(Int, Int)]] = {
-    val dataframe = spark.sql("select program, episode, rating from simulation.ratings")
+    val dataframe = externalTable.select("program", "episode", "rating")
     val rows = dataframe.orderBy("program", "episode", "rating").collect()
     val data = new ArrayBuffer[(String, Int, Int)](rows.length)
     rows foreach { row =>
@@ -112,7 +113,7 @@ class Simulation {
 
   // Sink
   def selectProgramRatingsFromCassandra(): Seq[(String, Long)] = {
-    val dataframe = spark.sql("select program, rating from simulation.ratings")
+    val dataframe = externalTable.select("program", "rating")
     val rows = dataframe.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()
     val data = new ArrayBuffer[(String, Long)](rows.length)
     rows foreach { row =>
