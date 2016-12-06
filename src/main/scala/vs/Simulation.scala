@@ -86,12 +86,12 @@ class Simulation {
     val streamingContext = new StreamingContext(sparkContext, Milliseconds(3000))
     val kafkaParams = kafkaConsumerProperties
     val kafkaTopics = Set(kafkaTopic)
-    val stream = KafkaUtils.createDirectStream[String, String](
+    val is = KafkaUtils.createDirectStream[String, String](
       streamingContext,
       PreferConsistent,
       Subscribe[String, String](kafkaTopics, kafkaParams)
     )
-    val ds = stream map { record =>
+    val ds = is map { record =>
       val fields = record.value.split(",")
       val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
       tuple
