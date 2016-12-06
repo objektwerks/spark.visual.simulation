@@ -93,7 +93,6 @@ class Simulation {
       Subscribe[String, String](kafkaTopics, kafkaParams)
     )
     val ds = is map { record =>
-      println(record.toString)
       val fields = record.value.split(",")
       val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
       tuple
