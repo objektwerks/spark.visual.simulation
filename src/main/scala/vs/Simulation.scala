@@ -10,8 +10,7 @@ import kafka.utils.ZkUtils
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
-import org.apache.spark.streaming.kafka010.KafkaUtils
-import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
+import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -90,7 +89,7 @@ class Simulation {
     val kafkaTopics = Set(kafkaTopic)
     val is = KafkaUtils.createDirectStream[String, String](
       streamingContext,
-      PreferConsistent,
+      LocationStrategies.PreferConsistent,
       Subscribe[String, String](kafkaTopics, kafkaParams)
     )
     val ds = is map { record =>
