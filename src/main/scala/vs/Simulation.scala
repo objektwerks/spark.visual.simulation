@@ -85,7 +85,7 @@ class Simulation {
   // Flow
   def consumeKafkaTopicMessagesAsDirectStream(): Unit = {
     import com.datastax.spark.connector.streaming._
-    val streamingContext = new StreamingContext(sparkContext, Milliseconds(3000))
+    val streamingContext = new StreamingContext(sparkContext, Milliseconds(10000))
     val kafkaParams = kafkaConsumerProperties
     val kafkaTopics = Set(kafkaTopic)
     val is = KafkaUtils.createDirectStream[String, String](
