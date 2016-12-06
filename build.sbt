@@ -1,32 +1,37 @@
-name := "objektwerks.visual.spark"
+name := "visual.spark"
+organization := "objektwerks"
 version := "0.1"
 scalaVersion := "2.11.8"
 ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
 libraryDependencies ++= {
-  val sparkVersion = "1.4.1"
+  val sparkVersion = "2.0.2"
   Seq(
-    "org.scalafx" % "scalafx_2.11" % "8.0.92-R10",
+    "org.scalafx" % "scalafx_2.11" % "8.0.102-R11",
     "org.apache.spark" % "spark-core_2.11" % sparkVersion,
     "org.apache.spark" % "spark-streaming_2.11" % sparkVersion,
     "org.apache.spark" % "spark-sql_2.11" % sparkVersion,
-    "org.apache.spark" % "spark-streaming-kafka_2.11" % sparkVersion,
-    "org.apache.kafka" % "kafka_2.11" % "0.8.2.2",
-    "com.datastax.spark" % "spark-cassandra-connector_2.11" % "1.4.0",
-    "org.slf4j" % "slf4j-api" % "1.7.13",
-    "org.scalatest" % "scalatest_2.11" % "2.2.5" % "test"
+    "org.apache.spark" % "spark-streaming-kafka-0-10_2.11" % sparkVersion,
+    "org.apache.kafka" % "kafka_2.11" % "0.10.1.0",
+    "com.datastax.spark" % "spark-cassandra-connector_2.11" % "2.0.0-M3",
+    "org.slf4j" % "slf4j-api" % "1.7.21",
+    "org.scalatest" % "scalatest_2.11" % "3.0.1" % "test"
   )
 }
 unmanagedJars in Compile += Attributed.blank(file(System.getenv("JAVA_HOME") + "/jre/lib/ext/jfxrt.jar"))
 scalacOptions ++= Seq(
   "-language:postfixOps",
-  "-language:implicitConversions",
   "-language:reflectiveCalls",
+  "-language:implicitConversions",
   "-language:higherKinds",
   "-feature",
+  "-Ywarn-unused-import",
+  "-Ywarn-unused",
+  "-Ywarn-dead-code",
   "-unchecked",
   "-deprecation",
-  "-Xlint",
-  "-Xfatal-warnings"
+  "-Xfatal-warnings",
+  "-Xlint:missing-interpolator",
+  "-Xlint"
 )
 javaOptions += "-server -Xss1m -Xmx4g"
 fork in test := true
