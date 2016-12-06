@@ -5,12 +5,11 @@ import java.util.Properties
 import com.datastax.spark.connector.SomeColumns
 import com.datastax.spark.connector.cql.CassandraConnector
 import kafka.admin.AdminUtils
-import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
-import kafka.serializer.StringDecoder
-import kafka.utils.ZKStringSerializer
-import org.I0Itec.zkclient.ZkClient
-import org.apache.spark.sql.cassandra.CassandraSQLContext
-import org.apache.spark.streaming.kafka.KafkaUtils
+import kafka.utils.ZkUtils
+import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
+import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
+import org.apache.spark.streaming.kafka010.KafkaUtils
+import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
 import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -22,10 +21,12 @@ case class Result(ratings: Seq[(String, String, String, String)], // Source
                   programRatings: Seq[(String, Long)]) // Sink
 
 class Simulation {
-  val sparkConf = new SparkConf()
+  val sparkConf = new SparkConf(loadDefaults = true)
     .setMaster("local[2]")
     .setAppName("sparky")
     .set("spark.cassandra.connection.host", "127.0.0.1")
+    .set("spark.cassandra.auth.username", "cassandra")
+    .set("spark.cassandra.auth.password", "cassandra")
   val sparkContext = new SparkContext(sparkConf)
   val kafkaTopic = "ratings"
 
@@ -41,11 +42,13 @@ class Simulation {
   }
 
   def createKafkaTopic(): Unit = {
-    val zkClient = new ZkClient("localhost:2181", 3000, 3000, ZKStringSerializer)
-    val metadata = AdminUtils.fetchTopicMetadataFromZk(kafkaTopic, zkClient)
-    metadata.partitionsMetadata.foreach(println)
-    if (metadata.topic != kafkaTopic) {
-      AdminUtils.createTopic(zkClient, kafkaTopic, 1, 1)
+    val zkClient = ZkUtils.createZkClient("localhost:2181", 10000, 10000)
+    val zkUtils = ZkUtils(zkClient, isZkSecurityEnabled = false)
+    val topicMetadata = AdminUtils.fetchTopicMetadataFromZk(kafkaTopic, zkUtils)
+    println(s"Kafka topic: ${topicMetadata.topic}")
+    if (topicMetadata.topic != kafkaTopic) {
+      AdminUtils.createTopic(zkUtils, kafkaTopic, 1, 1, SparkInstance.kafkaProducerProperties)
+      println(s"Kafka Topic ( $kafkaTopic ) created.")
     }
   }
 
@@ -60,20 +63,16 @@ class Simulation {
 
   // Source
   def produceAndSendKafkaTopicMessages(): Seq[(String, String, String, String)] = {
-    val props = new Properties
-    props.load(Source.fromInputStream(getClass.getResourceAsStream("/kafka.properties")).bufferedReader())
-    val config = new ProducerConfig(props)
-    val producer = new Producer[String, String](config)
+    val producer = new KafkaProducer[String, String](loadProperties("/kafka.producer.properties"))
     val source = Source.fromInputStream(getClass.getResourceAsStream("/ratings")).getLines.toSeq
     val ratings = ArrayBuffer[(String, String, String, String)]()
-    val keyedMessages = ArrayBuffer[KeyedMessage[String, String]]()
     source foreach { line =>
       val fields = line.split(",")
       val rating = (fields(0), fields(1), fields(2), fields(3))
       ratings += rating
-      keyedMessages += KeyedMessage[String, String](topic = kafkaTopic, key = line, partKey = 0, message = line)
+      val record = new ProducerRecord[String, String](kafkaTopic, 0, line, line)
+      producer.send(record)
     }
-    producer.send(keyedMessages: _*)
     ratings
   }
 
@@ -81,11 +80,15 @@ class Simulation {
   def consumeKafkaTopicMessagesAsDirectStream(): Unit = {
     import com.datastax.spark.connector.streaming._
     val streamingContext = new StreamingContext(sparkContext, Milliseconds(3000))
-    val kafkaParams = Map("metadata.broker.list" -> "localhost:9092", "auto.offset.reset" -> "smallest")
+    val kafkaParams = toMap(loadProperties("/kafka.consumer.properties"))
     val kafkaTopics = Set(kafkaTopic)
-    val is = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, kafkaTopics)
-    val ds = is map { rdd =>
-      val fields = rdd._2.split(",")
+    val stream = KafkaUtils.createDirectStream[String, String](
+      streamingContext,
+      PreferConsistent,
+      Subscribe[String, String](kafkaTopics, kafkaParams)
+    )
+    val ds = stream map { record =>
+      val fields = record.value.split(",")
       val tuple = (fields(0), fields(1).toInt, fields(2).toInt, fields(3).toInt)
       tuple
     }
@@ -119,5 +122,16 @@ class Simulation {
       data += tuple
     }
     data
+  }
+
+  private def loadProperties(file: String): Properties = {
+    val properties = new Properties()
+    properties.load(Source.fromInputStream(getClass.getResourceAsStream(file)).bufferedReader())
+    properties
+  }
+
+  private def toMap(properties: Properties): Map[String, String] = {
+    import scala.collection.JavaConverters._
+    properties.asScala.toMap
   }
 }
