@@ -7,6 +7,7 @@ import com.datastax.spark.connector.cql.CassandraConnector
 import kafka.admin.AdminUtils
 import kafka.utils.ZkUtils
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
 import org.apache.spark.streaming.kafka010.KafkaUtils
 import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
@@ -28,6 +29,9 @@ class Simulation {
     .set("spark.cassandra.auth.username", "cassandra")
     .set("spark.cassandra.auth.password", "cassandra")
   val sparkContext = new SparkContext(sparkConf)
+  val sparkSession = SparkSession.builder().getOrCreate()
+  val kafkaProducerProperties = loadProperties("/kafka.producer.properties")
+  val kafkaConsumerProperties = toMap(loadProperties("/kafka.consumer.properties"))
   val kafkaTopic = "ratings"
 
   def play(): Result = {
@@ -47,7 +51,7 @@ class Simulation {
     val topicMetadata = AdminUtils.fetchTopicMetadataFromZk(kafkaTopic, zkUtils)
     println(s"Kafka topic: ${topicMetadata.topic}")
     if (topicMetadata.topic != kafkaTopic) {
-      AdminUtils.createTopic(zkUtils, kafkaTopic, 1, 1, SparkInstance.kafkaProducerProperties)
+      AdminUtils.createTopic(zkUtils, kafkaTopic, 1, 1, kafkaProducerProperties)
       println(s"Kafka Topic ( $kafkaTopic ) created.")
     }
   }
@@ -63,7 +67,7 @@ class Simulation {
 
   // Source
   def produceAndSendKafkaTopicMessages(): Seq[(String, String, String, String)] = {
-    val producer = new KafkaProducer[String, String](loadProperties("/kafka.producer.properties"))
+    val producer = new KafkaProducer[String, String](kafkaProducerProperties)
     val source = Source.fromInputStream(getClass.getResourceAsStream("/ratings")).getLines.toSeq
     val ratings = ArrayBuffer[(String, String, String, String)]()
     source foreach { line =>
@@ -80,7 +84,7 @@ class Simulation {
   def consumeKafkaTopicMessagesAsDirectStream(): Unit = {
     import com.datastax.spark.connector.streaming._
     val streamingContext = new StreamingContext(sparkContext, Milliseconds(3000))
-    val kafkaParams = toMap(loadProperties("/kafka.consumer.properties"))
+    val kafkaParams = kafkaConsumerProperties
     val kafkaTopics = Set(kafkaTopic)
     val stream = KafkaUtils.createDirectStream[String, String](
       streamingContext,
@@ -100,10 +104,9 @@ class Simulation {
 
   // Flow
   def selectProgramToEpisodesRatingsFromCassandra(): Map[String, Seq[(Int, Int)]] = {
-    val sqlContext = new CassandraSQLContext(sparkContext)
-    val df = sqlContext.sql("select program, episode, rating from simulation.ratings")
-    val rows = df.orderBy("program", "episode", "rating").collect()
-    var data = new ArrayBuffer[(String, Int, Int)](rows.length)
+    val dataframe = sparkSession.sql("select program, episode, rating from simulation.ratings")
+    val rows = dataframe.orderBy("program", "episode", "rating").collect()
+    val data = new ArrayBuffer[(String, Int, Int)](rows.length)
     rows foreach { row =>
       val tuple = (row.getAs[String](0), row.getAs[Int](1), row.getAs[Int](2))
       data += tuple
@@ -113,8 +116,7 @@ class Simulation {
 
   // Sink
   def selectProgramRatingsFromCassandra(): Seq[(String, Long)] = {
-    val sqlContext = new CassandraSQLContext(sparkContext)
-    val df = sqlContext.sql("select program, rating from simulation.ratings")
+    val df = sparkSession.sql("select program, rating from simulation.ratings")
     val rows = df.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()
     val data = new ArrayBuffer[(String, Long)](rows.length)
     rows foreach { row =>
