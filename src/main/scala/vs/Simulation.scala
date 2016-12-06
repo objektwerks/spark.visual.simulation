@@ -29,7 +29,7 @@ class Simulation {
     .set("spark.cassandra.auth.username", "cassandra")
     .set("spark.cassandra.auth.password", "cassandra")
   val sparkContext = new SparkContext(sparkConf)
-  val sparkSession = SparkSession.builder().getOrCreate()
+  val sparkSession = SparkSession.builder.config(sparkConf).getOrCreate()
   val kafkaProducerProperties = loadProperties("/kafka.producer.properties")
   val kafkaConsumerProperties = toMap(loadProperties("/kafka.consumer.properties"))
   val kafkaTopic = "ratings"
