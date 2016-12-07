@@ -27,14 +27,14 @@ class Simulation {
   session.execute("CREATE KEYSPACE simulation WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
   session.execute("CREATE TABLE simulation.ratings(program text, season int, episode int, rating int, PRIMARY KEY (program, season, episode));")
 
-  val spark = SparkSession.builder
+  val sparkSession = SparkSession.builder
     .master("local[2]")
     .appName("visual.spark")
     .config("spark.cassandra.connection.host", "127.0.0.1")
     .config("spark.cassandra.auth.username", "cassandra")
     .config("spark.cassandra.auth.password", "cassandra")
     .getOrCreate()
-  val externalTable = spark.catalog.createExternalTable("rating", "org.apache.spark.sql.cassandra", Map("keyspace" -> "simulation", "table" -> "ratings"))
+  val ratingsExternalTable = sparkSession.catalog.createExternalTable("ratings", "org.apache.spark.sql.cassandra", Map("keyspace" -> "simulation", "table" -> "ratings"))
 
   val kafkaProducerProperties = loadProperties("/kafka.producer.properties")
   val kafkaConsumerProperties = toMap(loadProperties("/kafka.consumer.properties"))
@@ -46,7 +46,7 @@ class Simulation {
     consumeKafkaTopicMessagesAsDirectStream()
     val programToEpisodesRatings = selectProgramToEpisodesRatingsFromCassandra()
     val programRatings = selectProgramRatingsFromCassandra()
-    spark.stop()
+    sparkSession.stop()
     Result(ratings, programToEpisodesRatings, programRatings)
   }
 
@@ -80,7 +80,7 @@ class Simulation {
   // Flow
   def consumeKafkaTopicMessagesAsDirectStream(): Unit = {
     import com.datastax.spark.connector.streaming._
-    val streamingContext = new StreamingContext(spark.sparkContext, Milliseconds(10000))
+    val streamingContext = new StreamingContext(sparkSession.sparkContext, Milliseconds(10000))
     val kafkaParams = kafkaConsumerProperties
     val kafkaTopics = Set(kafkaTopic)
     val is = KafkaUtils.createDirectStream[String, String](
@@ -101,7 +101,7 @@ class Simulation {
 
   // Flow
   def selectProgramToEpisodesRatingsFromCassandra(): Map[String, Seq[(Int, Int)]] = {
-    val dataframe = externalTable.select("program", "episode", "rating")
+    val dataframe = ratingsExternalTable.select("program", "episode", "rating")
     val rows = dataframe.orderBy("program", "episode", "rating").collect()
     val data = new ArrayBuffer[(String, Int, Int)](rows.length)
     rows foreach { row =>
@@ -113,7 +113,7 @@ class Simulation {
 
   // Sink
   def selectProgramRatingsFromCassandra(): Seq[(String, Long)] = {
-    val dataframe = externalTable.select("program", "rating")
+    val dataframe = ratingsExternalTable.select("program", "rating")
     val rows = dataframe.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()
     val data = new ArrayBuffer[(String, Long)](rows.length)
     rows foreach { row =>
