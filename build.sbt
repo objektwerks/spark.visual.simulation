@@ -2,7 +2,6 @@ name := "visual.spark"
 organization := "objektwerks"
 version := "0.1-SNAPSHOT"
 scalaVersion := "2.11.11"
-ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
 libraryDependencies ++= {
   val sparkVersion = "2.2.0"
   Seq(
