@@ -21,12 +21,14 @@ case class Result(ratings: Seq[(String, String, String, String)], // Source
                   programRatings: Seq[(String, Long)]) // Sink
 
 class Simulation {
+  // Cassandra
   val cluster = Cluster.builder.addContactPoint("127.0.0.1").build()
   val session = cluster.connect()
   session.execute("DROP KEYSPACE IF EXISTS simulation;")
   session.execute("CREATE KEYSPACE simulation WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
   session.execute("CREATE TABLE simulation.ratings(program text, season int, episode int, rating int, PRIMARY KEY (program, season, episode));")
 
+  // Spark
   val sparkSession = SparkSession.builder
     .master("local[2]")
     .appName("visual.spark")
@@ -34,14 +36,16 @@ class Simulation {
     .config("spark.cassandra.auth.username", "cassandra")
     .config("spark.cassandra.auth.password", "cassandra")
     .getOrCreate()
-  val ratingsExternalTable = sparkSession.catalog.createExternalTable("ratings", "org.apache.spark.sql.cassandra", Map("keyspace" -> "simulation", "table" -> "ratings"))
+  val ratingsTable = sparkSession.catalog.createTable("ratings", "org.apache.spark.sql.cassandra", Map("keyspace" -> "simulation", "table" -> "ratings"))
 
+  // Kafka
   val kafkaProducerProperties = loadProperties("/kafka.producer.properties")
   val kafkaConsumerProperties = toMap(loadProperties("/kafka.consumer.properties"))
   val kafkaTopic = "ratings"
 
+  // Run
   def play(): Result = {
-    createKafkaTopic()
+    assert( createKafkaTopic(kafkaTopic) == kafkaTopic )
     val ratings = produceAndSendKafkaTopicMessages()
     consumeKafkaTopicMessagesAsDirectStream()
     val programToEpisodesRatings = selectProgramToEpisodesRatingsFromCassandra()
@@ -50,15 +54,13 @@ class Simulation {
     Result(ratings, programToEpisodesRatings, programRatings)
   }
 
-  def createKafkaTopic(): Unit = {
+  // Topic
+  def createKafkaTopic(topic: String): String = {
     val zkClient = ZkUtils.createZkClient("localhost:2181", 10000, 10000)
     val zkUtils = ZkUtils(zkClient, isZkSecurityEnabled = false)
-    val topicMetadata = AdminUtils.fetchTopicMetadataFromZk(kafkaTopic, zkUtils)
-    println(s"Kafka topic: ${topicMetadata.topic}")
-    if (topicMetadata.topic != kafkaTopic) {
-      AdminUtils.createTopic(zkUtils, kafkaTopic, 1, 1, kafkaProducerProperties)
-      println(s"Kafka Topic ( $kafkaTopic ) created.")
-    }
+    val metadata = AdminUtils.fetchTopicMetadataFromZk(topic, zkUtils)
+    zkClient.close()
+    metadata.topic
   }
 
   // Source
@@ -101,7 +103,7 @@ class Simulation {
 
   // Flow
   def selectProgramToEpisodesRatingsFromCassandra(): Map[String, Seq[(Int, Int)]] = {
-    val dataframe = ratingsExternalTable.select("program", "episode", "rating")
+    val dataframe = ratingsTable.select("program", "episode", "rating")
     val rows = dataframe.orderBy("program", "episode", "rating").collect()
     val data = new ArrayBuffer[(String, Int, Int)](rows.length)
     rows foreach { row =>
@@ -113,7 +115,7 @@ class Simulation {
 
   // Sink
   def selectProgramRatingsFromCassandra(): Seq[(String, Long)] = {
-    val dataframe = ratingsExternalTable.select("program", "rating")
+    val dataframe = ratingsTable.select("program", "rating")
     val rows = dataframe.groupBy("program").agg("rating" -> "sum").orderBy("program").collect()
     val data = new ArrayBuffer[(String, Long)](rows.length)
     rows foreach { row =>
@@ -123,13 +125,13 @@ class Simulation {
     data
   }
 
-  private def loadProperties(file: String): Properties = {
+  def loadProperties(file: String): Properties = {
     val properties = new Properties()
     properties.load(Source.fromInputStream(getClass.getResourceAsStream(file)).bufferedReader())
     properties
   }
 
-  private def toMap(properties: Properties): Map[String, String] = {
+  def toMap(properties: Properties): Map[String, String] = {
     import scala.collection.JavaConverters._
     properties.asScala.toMap
   }

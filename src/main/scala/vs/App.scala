@@ -76,7 +76,7 @@ object App extends JFXApp {
   val playSimulationButton = new Button {
     text = "Play"
     disable <== SimulationTask.running
-    onAction = { ae: ActionEvent => ExecutionContext.global.execute(SimulationTask) }
+    onAction = { _: ActionEvent => ExecutionContext.global.execute(SimulationTask) }
   }
 
   val simulationTaskCompleted = new ObjectProperty[Result]()
