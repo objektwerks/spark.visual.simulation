@@ -1,4 +1,4 @@
-name := "visual.spark"
+name := "spark.visual.simulation"
 organization := "objektwerks"
 version := "0.1-SNAPSHOT"
 scalaVersion := "2.11.11"

@@ -1,6 +1,6 @@
-Visual Spark
-------------
->The purpose of the project is to build a Spark simulator that executes a visual simulation of a data source ~> spark
+Spark Visual Simulation
+-----------------------
+>The purpose of the project is to build a Spark app that executes a visual simulation of a data source ~> spark
 flow ~> data sink pipeline.
 
 ***
