@@ -47,12 +47,12 @@ Logging
 Spark, however, ignores a jar-based log4j.properties file whether a job is run by spark-submit.sh or SparkLauncher. You have to
 place a log4j.properties file in the $SPARK_HOME/conf directory. A log4j.properties.template file is provided in the same directory.
 
-Output
-------
->Output is directed to these directories:
+Logs
+----
+>Logging is directed to these directories:
 
-1. ./target/output/test
-2. ./target/output/main
+1. ./target/test.log
+2. ./target/main.log
 
 Kafka Topics
 ------------
