@@ -1,14 +1,14 @@
 package simulation
 
-import org.scalatest.FunSuite
+import org.scalatest.{FunSuite, Matchers}
 
-class SimulationTest extends FunSuite {
+class SimulationTest extends FunSuite with Matchers {
   test("simulation") {
     val simulation = new Simulation()
     val result = simulation.play()
-    assert(result.ratings.nonEmpty)
-    assert(result.programToEpisodesRatings.nonEmpty)
-    assert(result.programRatings.nonEmpty)
+    result.ratings.nonEmpty shouldBe true
+    result.programToEpisodesRatings.nonEmpty shouldBe true
+    result.programRatings.nonEmpty shouldBe true
     println(result.toString)
   }
 }
