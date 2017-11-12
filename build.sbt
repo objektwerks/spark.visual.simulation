@@ -13,7 +13,7 @@ libraryDependencies ++= {
     "org.apache.kafka" % "kafka_2.11" % "0.11.0.0",
     "com.datastax.spark" % "spark-cassandra-connector_2.11" % "2.0.2",
     "org.slf4j" % "slf4j-api" % "1.7.25",
-    "org.scalatest" % "scalatest_2.11" % "3.0.3" % "test"
+    "org.scalatest" % "scalatest_2.11" % "3.0.4" % "test"
   )
 }
 unmanagedJars in Compile += Attributed.blank(file(System.getenv("JAVA_HOME") + "/jre/lib/ext/jfxrt.jar"))
