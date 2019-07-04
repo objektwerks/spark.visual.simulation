@@ -1,18 +1,17 @@
 package simulation
 
 import java.util.Properties
-import java.util.concurrent.TimeUnit
 
 import com.datastax.driver.core.Cluster
 import com.datastax.spark.connector.SomeColumns
-import kafka.admin.AdminUtils
-import kafka.utils.ZkUtils
+import org.apache.kafka.clients.admin.{AdminClient, AdminClientConfig, NewTopic}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
@@ -45,7 +44,7 @@ class Simulation {
 
   // Run
   def play(): Result = {
-    assert( createKafkaTopic(kafkaTopic) == kafkaTopic )
+    assert( createKafkaTopic(kafkaTopic) )
     val ratings = produceAndSendKafkaTopicMessages()
     consumeKafkaTopicMessagesAsDirectStream()
     val programToEpisodesRatings = selectProgramToEpisodesRatingsFromCassandra()
@@ -55,12 +54,13 @@ class Simulation {
   }
 
   // Topic
-  def createKafkaTopic(topic: String): String = {
-    val zkClient = ZkUtils.createZkClient("localhost:2181", 10000, 10000)
-    val zkUtils = ZkUtils(zkClient, isZkSecurityEnabled = false)
-    val metadata = AdminUtils.fetchTopicMetadataFromZk(topic, zkUtils)
-    zkClient.close()
-    metadata.topic
+  def createKafkaTopic(topic: String): Boolean = {
+    val adminClientProperties = new Properties()
+    adminClientProperties.setProperty(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092")
+    val adminClient = AdminClient.create(adminClientProperties)
+    val newTopic = new NewTopic(topic, 1, 1.toShort)
+    val createTopicResult = adminClient.createTopics(List(newTopic).asJavaCollection)
+    createTopicResult.values().containsKey(topic)
   }
 
   // Source
@@ -75,7 +75,7 @@ class Simulation {
       val record = new ProducerRecord[String, String](kafkaTopic, 0, line, line)
       producer.send(record)
     }
-    producer.close(3000L, TimeUnit.MILLISECONDS)
+    producer.close()
     ratings
   }
 

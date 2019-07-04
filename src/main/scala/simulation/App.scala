@@ -141,9 +141,9 @@ object App extends JFXApp {
   }
 
   def buildSinkChart(programRatings: Seq[(String, Long)]): Unit = {
-    val ratingTotal: Float = programRatings.map(_._2).sum
+    val ratingTotal = programRatings.map(_._2).sum.toFloat
     sinkChart.data = programRatings map {
-      case (program, rating) => PieChart.Data( f"$program(${ (rating / ratingTotal) * 100}%.0f%%)", rating )
+      case (program, rating) => PieChart.Data( f"$program(${ (rating / ratingTotal) * 100}%.0f%%)", rating.toDouble )
     }
   }
 }
