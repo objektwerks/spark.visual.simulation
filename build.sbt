@@ -1,9 +1,9 @@
 name := "spark.visual.simulation"
 organization := "objektwerks"
 version := "0.1-SNAPSHOT"
-scalaVersion := "2.11.12"
+scalaVersion := "2.12.11"
 libraryDependencies ++= {
-  val sparkVersion = "2.4.4"
+  val sparkVersion = "2.4.6"
   Seq(
     "org.scalafx" % "scalafx_2.11" % "8.0.102-R11",
     "org.apache.spark" %% "spark-core" % sparkVersion,
