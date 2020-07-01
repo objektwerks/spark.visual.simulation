@@ -1,8 +1,9 @@
 package simulation
 
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class SimulationTest extends FunSuite with Matchers {
+class SimulationTest extends AnyFunSuite with Matchers {
   test("simulation") {
     val simulation = new Simulation()
     val result = simulation.play()

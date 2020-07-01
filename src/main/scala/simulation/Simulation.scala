@@ -1,9 +1,11 @@
 package simulation
 
-import java.util.Properties
-
-import com.datastax.driver.core.Cluster
+import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.spark.connector.SomeColumns
+
+import java.util.Properties
+import java.net.InetSocketAddress
+
 import org.apache.kafka.clients.admin.{AdminClient, AdminClientConfig, NewTopic}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.apache.spark.sql.SparkSession
@@ -21,8 +23,13 @@ case class Result(ratings: Seq[(String, String, String, String)], // Source
 
 class Simulation {
   // Cassandra
-  val cluster = Cluster.builder.addContactPoint("127.0.0.1").build()
-  val session = cluster.connect()
+  val address = new InetSocketAddress("127.0.0.1", 9042)
+  val datacenter = "datacenter1"
+  val session = CqlSession
+    .builder()
+    .addContactPoint(address)
+    .withLocalDatacenter(datacenter)
+    .build()
   session.execute("DROP KEYSPACE IF EXISTS simulation;")
   session.execute("CREATE KEYSPACE simulation WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };")
   session.execute("CREATE TABLE simulation.ratings(program text, season int, episode int, rating int, PRIMARY KEY (program, season, episode));")
