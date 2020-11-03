@@ -1,19 +1,10 @@
 Spark Visual Simulation
 -----------------------
->The purpose of the project is to build a Spark app that executes a visual simulation of a data source ~> spark
-flow ~> data sink pipeline.
-
-***
-
-Homebrew
---------
->Install Homebrew on OSX. [How-To] (http://coolestguidesontheplanet.com/installing-homebrew-os-x-yosemite-10-10-package-manager-unix-apps/)
+>Spark app that executes a visual simulation of a spark source ~> flow ~> sink pipeline.
 
 Installation
 ------------
->Install the following packages via Homebrew:
-
-1. brew tap homebrew/services [Homebrew Services] (https://robots.thoughtbot.com/starting-and-stopping-background-services-with-homebrew)
+1. brew tap homebrew/services
 2. brew install scala
 3. brew install sbt
 4. brew install cassandra
@@ -21,21 +12,12 @@ Installation
 
 Services
 --------
->Start:
+1. brew services start cassandra & zookeeper & kafka
+2. brew services stop cassandra & kafka * zookeeper
 
-1. brew services start cassandra
-2. brew services start zookeeper
-3. brew services start kafka
-
->Homebrew uses launchctl/launchd to ensure services are booted up on each system start, unless you stop them. Take a
- look at the apache.kafka.plist in this project. Homebrew service plist files are ideally stored in ~/Library/LaunchAgents
- See [launchd] (http://launchd.info) for details. Ideally you should use Xcode to edited a plist.
-
->Stop:
-
-1. brew services stop cassandra
-2. brew services stop kafka
-3. brew services stop zookeeper
+Test
+----
+1. sbt clean test
 
 Run
 ---
@@ -49,8 +31,6 @@ place a log4j.properties file in the $SPARK_HOME/conf directory. A log4j.propert
 
 Logs
 ----
->Logging is directed to these directories:
-
 1. ./target/test.log
 2. ./target/main.log
 
