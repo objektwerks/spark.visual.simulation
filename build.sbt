@@ -15,7 +15,7 @@ libraryDependencies ++= {
     "org.apache.kafka" %% "kafka" % "2.7.0",
     "com.datastax.spark" %% "spark-cassandra-connector" % "3.0.0",
     "org.slf4j" % "slf4j-api" % "1.7.26",
-    "org.scalatest" %% "scalatest" % "3.2.5" % Test
+    "org.scalatest" %% "scalatest" % "3.2.6" % Test
   )
 }
 lazy val osName = System.getProperty("os.name") match {
