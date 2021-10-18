@@ -3,7 +3,7 @@ organization := "objektwerks"
 version := "0.1-SNAPSHOT"
 scalaVersion := "2.12.15"
 libraryDependencies ++= {
-  val sparkVersion = "2.4.8"
+  val sparkVersion = "3.2.0"
   Seq(
     "org.scalafx" %% "scalafx" % "16.0.0-R25",
     "org.apache.spark" %% "spark-core" % sparkVersion,
