@@ -13,6 +13,6 @@ libraryDependencies ++= {
     "org.apache.kafka" %% "kafka" % "2.8.1",
     "com.datastax.spark" %% "spark-cassandra-connector" % "3.1.0",
     "org.slf4j" % "slf4j-api" % "1.7.36",
-    "org.scalatest" %% "scalatest" % "3.2.12" % Test
+    "org.scalatest" %% "scalatest" % "3.2.13" % Test
   )
 }
