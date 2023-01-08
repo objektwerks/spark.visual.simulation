@@ -1,9 +1,9 @@
 name := "spark.visual.simulation"
 organization := "objektwerks"
 version := "0.1-SNAPSHOT"
-scalaVersion := "2.13.10"
+scalaVersion := "2.12.17"
 libraryDependencies ++= {
-  val sparkVersion = "3.3.1"
+  val sparkVersion = "2.4.8"
   Seq(
     "org.scalafx" %% "scalafx" % "19.0.0-R30",
     "org.apache.spark" %% "spark-core" % sparkVersion,
@@ -11,8 +11,8 @@ libraryDependencies ++= {
     "org.apache.spark" %% "spark-sql" % sparkVersion,
     "org.apache.spark" %% "spark-streaming-kafka-0-10" % "3.3.1",
     "org.apache.kafka" %% "kafka" % "2.8.1",
-    "com.datastax.spark" %% "spark-cassandra-connector" % "3.1.0",
-    "org.slf4j" % "slf4j-api" % "2.0.3",
+    "com.datastax.spark" %% "spark-cassandra-connector" % "3.2.0",
+    "org.slf4j" % "slf4j-api" % "2.0.6",
     "org.scalatest" %% "scalatest" % "3.2.14" % Test
   )
 }
