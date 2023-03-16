@@ -12,8 +12,8 @@ Installation
 
 Services
 --------
-1. brew services start cassandra & zookeeper & kafka
-2. brew services stop cassandra & kafka * zookeeper
+1. brew services start cassandra, zookeeper, kafka
+2. brew services stop cassandra, kafka, zookeeper
 
 Test
 ----
