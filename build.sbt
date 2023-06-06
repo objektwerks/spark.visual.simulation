@@ -1,7 +1,7 @@
 name := "spark.visual.simulation"
 organization := "objektwerks"
 version := "0.1-SNAPSHOT"
-scalaVersion := "2.12.17"
+scalaVersion := "2.12.18"
 libraryDependencies ++= {
   val sparkVersion = "2.4.8"
   Seq(
