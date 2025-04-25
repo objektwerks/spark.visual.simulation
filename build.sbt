@@ -5,7 +5,7 @@ scalaVersion := "2.12.20"
 libraryDependencies ++= {
   val sparkVersion = "2.4.8"
   Seq(
-    "org.scalafx" %% "scalafx" % "23.0.1-R34",
+    "org.scalafx" %% "scalafx" % "24.0.0-R35",
     "org.apache.spark" %% "spark-core" % sparkVersion,
     "org.apache.spark" %% "spark-streaming" % sparkVersion,
     "org.apache.spark" %% "spark-sql" % sparkVersion,
